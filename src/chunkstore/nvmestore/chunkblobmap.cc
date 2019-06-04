@@ -1,4 +1,7 @@
 #include "chunkstore/nvmestore/chunkblobmap.h"
+
+#include <math.h>
+
 #include "util/utime.h"
 #include "chunkstore/log_cs.h"
 
@@ -79,7 +82,6 @@ void ChunkBlobMap::read_next_page_cb(void *cb_arg, int bserrno) {
     struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
     uint8_t *buffer = (uint8_t *)(larg->buffer);
     uint64_t page_size = nvmestore->get_page_size();
-    uint64_t unit_count = page_size / nvmestore->get_unit_size();
 
     size_t entries_in_page = page_size / (sizeof(spdk_blob_id) + sizeof(uint64_t));
     size_t rest_entries = chunk_blob_map->entry_nums - chunk_blob_map->loaded_entries;
@@ -96,11 +98,12 @@ void ChunkBlobMap::read_next_page_cb(void *cb_arg, int bserrno) {
         chunk_blob_map->loaded_entries++;
     }
 
-    uint64_t offset = ((chunk_blob_map->loaded_entries) / entries_in_page + 1) * unit_count;
+    uint64_t offset = (chunk_blob_map->loaded_entries) / entries_in_page + 1;
     if(rest_entries > entries_in_page) {
         memset(buffer, 0, page_size);
+        uint64_t length = 1;
         spdk_blob_io_read(chunk_blob_map->map_blob, io_channel, 
-                            buffer, offset, page_size, read_next_page_cb, larg);
+                            buffer, offset, length, read_next_page_cb, larg);
     } else {
         chunk_blob_map->signal_load_completed();
         return ;
@@ -124,7 +127,6 @@ void ChunkBlobMap::read_map_blob_cb(void *cb_arg, int bserrno) {
     struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
     uint8_t *buffer = (uint8_t *)(larg->buffer);
     uint64_t page_size = nvmestore->get_page_size();
-    uint64_t unit_size = nvmestore->get_unit_size();
 
     struct chunk_blob_entry_descriptor descriptor;
     memcpy(&(descriptor), buffer, sizeof(uint64_t));
@@ -148,8 +150,9 @@ void ChunkBlobMap::read_map_blob_cb(void *cb_arg, int bserrno) {
     buffer = (uint8_t *)(larg->buffer);
     if(chunk_blob_map->entry_nums > entries_in_page) {
         memset(buffer, 0, page_size);
+        uint64_t length = 1;
         spdk_blob_io_read(chunk_blob_map->map_blob, io_channel, buffer, 
-                        1 * (page_size / unit_size), page_size, 
+                        1, length,
                         read_next_page_cb, larg);
     } else {
         chunk_blob_map->signal_load_completed();
@@ -163,8 +166,9 @@ void ChunkBlobMap::read_map_blob(void *arg1, void *arg2) {
     ChunkBlobMap *chunk_blob_map = larg->chunk_blob_map;
 
     struct spdk_io_channel *io_channel = nvmestore->get_io_channel(WRITE_CHANNEL, 0);
+    uint64_t length = 1;
     spdk_blob_io_read(chunk_blob_map->map_blob, io_channel, 
-                    larg->buffer, 0, nvmestore->get_page_size(), 
+                    larg->buffer, 0, length, 
                     read_map_blob_cb, larg);
 }
 
@@ -203,7 +207,7 @@ void ChunkBlobMap::open_map_blob_cb(void *cb_arg, struct spdk_blob *blb, int bse
             std::cout << "open map_blob success." << std::endl;
             //这里由于不会产生元数据和数据的冲突操作，所以，在此我们直接采用在meta_core进行一次临时IO操作
             struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
-            uint64_t length = nvmestore->get_page_size() / nvmestore->get_unit_size();
+            uint64_t length = 1;
             std::cout << "write_init_info start..." << std::endl;
 
             struct create_map_arg *cmarg = dynamic_cast<struct create_map_arg *>(oparg);
@@ -222,7 +226,7 @@ void ChunkBlobMap::open_map_blob_cb(void *cb_arg, struct spdk_blob *blb, int bse
             struct load_map_arg *larg = dynamic_cast<struct load_map_arg *>(oparg);
             chunk_blob_map->set_blob(blb);
             struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
-            uint64_t length = nvmestore->get_page_size() / nvmestore->get_unit_size();
+            uint64_t length = 1;
             spdk_blob_io_read(chunk_blob_map->map_blob, io_channel, larg->buffer, 
                                 0, length, read_map_blob_cb, larg);
         }
@@ -287,9 +291,9 @@ void ChunkBlobMap::store_map_start(void *arg1, void *arg2) {
     ChunkBlobMap *chunk_blob_map = sarg->chunk_blob_map;
     NvmeStore *nvmestore = sarg->nvmestore;
     struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
-
+    uint64_t length = sarg->length;
     spdk_blob_io_write(chunk_blob_map->map_blob, io_channel, 
-                        sarg->buff, 0, sarg->buff_size, store_cb, sarg);
+                        sarg->buff, 0, length, store_cb, sarg);
 }
 
 /* store()：该函数用于向blobstore中存储chunk和blob的映射关系
@@ -305,13 +309,11 @@ int ChunkBlobMap::store() {
 
     uint64_t page_size = nvmestore->get_page_size();
     uint64_t page_count = ((entry_nums * (sizeof(uint64_t) + sizeof(spdk_blob_id))) + sizeof(struct chunk_blob_entry_descriptor)) / page_size + 1;
-    uint64_t unit_count = page_count / nvmestore->get_unit_size();
     uint64_t buffer_size = page_count * page_size;
 
 #ifdef DEBUG
     std::cout << "entry_nums = " << entry_nums << std::endl;
     std::cout << "page_count = " << page_count << std::endl;
-    std::cout << "unit_count = " << unit_count << std::endl;
     std::cout << "buffer_size = " << buffer_size << std::endl;
 #endif
 
@@ -341,8 +343,8 @@ int ChunkBlobMap::store() {
   
     uint64_t offset = (sizeof(struct chunk_blob_entry_descriptor) + entry_nums * (sizeof(uint64_t) + sizeof(spdk_blob_id)));
     memset(buffer_ptr, 0, buffer_size - offset);
-
-    struct store_map_arg *sarg = new store_map_arg(this, nvmestore, &ret, buff, buffer_size);
+    uint64_t length = ceil(buffer_size / this->nvmestore->get_page_size());
+    struct store_map_arg *sarg = new store_map_arg(this, nvmestore, &ret, buff, length);
 
     struct spdk_event *event = spdk_event_allocate(nvmestore->get_meta_core(), store_map_start, sarg, NULL);
     spdk_event_call(event);
@@ -383,7 +385,7 @@ void ChunkBlobMap::write_init_info(void *arg1, void *arg2) {
     ChunkBlobMap *chunk_blob_map = cmarg->chunk_blob_map;
 
     struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
-    uint64_t length = nvmestore->get_page_size() / nvmestore->get_unit_size();
+    uint64_t length = 1;
 
     spdk_blob_io_write(chunk_blob_map->map_blob, io_channel, 
                         cmarg->buffer, 0, length, 

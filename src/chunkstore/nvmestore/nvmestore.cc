@@ -109,9 +109,6 @@ uint64_t NvmeStore::get_page_size() {
     return page_size;
 }
 
-uint64_t NvmeStore::get_unit_size() {
-    return unit_size;
-}
 
 uint64_t NvmeStore::get_cluster_size() {
     return cluster_size;
@@ -271,7 +268,7 @@ void NvmeStore::bs_init_cb(void *cb_arg, struct spdk_blob_store *bs, int bserrno
 
     nvmestore->blobstore    = bs;
     nvmestore->page_size    = spdk_bs_get_page_size(bs);
-    nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
+    // nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
     nvmestore->cluster_size = spdk_bs_get_cluster_size(bs);
 
     nvmestore->meta_channel = spdk_bs_alloc_io_channel(bs);
@@ -462,7 +459,7 @@ void NvmeStore::bs_load_cb(void *cb_arg, struct spdk_blob_store *bs, int bserrno
 
     nvmestore->blobstore    = bs;
     nvmestore->page_size    = spdk_bs_get_page_size(bs);
-    nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
+    // nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
     nvmestore->cluster_size = spdk_bs_get_cluster_size(bs);
     nvmestore->data_cluster_count = spdk_bs_free_cluster_count(bs);
 /*
@@ -1006,7 +1003,7 @@ void NvmeStore::print_store() {
     std::cout << "|page_szie: "     << page_size    << "\n";
     std::cout << "|chunk_pages: "   << chunk_pages  << "\n";
     std::cout << "|total_chunks: "  << total_chunks << "\n";
-    std::cout << "|unit_size: "     << unit_size    << "\n";
+    // std::cout << "|unit_size: "     << unit_size    << "\n";
     std::cout << "|used_size: "     << used_size    << "\n";
     //std::cout << "|format_time: "   << asctime(localtime(format_time)) << "\n";
     std::cout << "|format_time: "   << format_time  << "\n";
