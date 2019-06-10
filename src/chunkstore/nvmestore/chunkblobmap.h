@@ -280,12 +280,12 @@ public:
 
 struct store_map_arg : public ChunkBlobMapOpArg {
     void *buff;
-    uint64_t buff_size;
+    uint64_t length;
 public:
     store_map_arg(ChunkBlobMap *_map, NvmeStore *_store, 
-                        int *_ret, void *_buff, uint64_t _buff_size): 
+                        int *_ret, void *_buff, uint64_t _length): 
                             ChunkBlobMapOpArg(_map, _store, _ret, STORE), 
-                            buff(_buff), buff_size(_buff_size) {
+                            buff(_buff), length(_length) {
 
     }
 };

@@ -132,6 +132,11 @@ void test_start(void *arg1, void *arg2) {
     
     cs->chunk_create(CHUNK_ID, opts);
 
+<<<<<<< HEAD
+=======
+    dynamic_pointer_cast<NvmeStore>(cs)->print_store();
+
+>>>>>>> b41771fd17e5467645648aaca9ecbeef9e2d818b
     std::shared_ptr<Chunk> chunk = cs->chunk_open(CHUNK_ID);
 
     void *buffer = spdk_dma_malloc(4096, 4096, NULL);

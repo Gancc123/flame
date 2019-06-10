@@ -7,4 +7,7 @@ endmacro()
 
 add_subdirectory(msg)
 add_subdirectory(libchunk)
+# add chunkstore test
+add_subdirectory(chunkstore)
+
 
