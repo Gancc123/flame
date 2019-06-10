@@ -1,7 +1,6 @@
 function(import_dpdk dpdk_dir)
     set(DPDK_INCLUDE_DIR ${dpdk_dir}/build/include)
-    find_path(S ${dpdk_dir}/build/lib/${CMAKE_STATIC_LIBRARY_PREFIX}rte_mempool${CMAKE_STATIC_LIBRARY_SUFFIX})
-    if(S)
+    if(EXISTS "${dpdk_dir}/build/lib/${CMAKE_STATIC_LIBRARY_PREFIX}rte_mempool${CMAKE_STATIC_LIBRARY_SUFFIX}")
         foreach(c
                 bus_pci
                 eal
