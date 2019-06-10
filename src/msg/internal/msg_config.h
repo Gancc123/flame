@@ -3,6 +3,7 @@
 
 #include "acconfig.h"
 #include "util/clog.h"
+#include "util/fmt.h"
 #include "types.h"
 #include "msg/msg_def.h"
 
@@ -20,7 +21,6 @@
 #define FLAME_NODE_LISTEN_PORTS_D     ""
 #define FLAME_RDMA_ENABLE_D           "false"
 #define FLAME_RDMA_CONN_VERSION_D     "1"
-#define FLAME_RDMA_HUGEPAGE_SIZE_D    "2M"
 #define FLAME_RDMA_DEVICE_NAME_D      ""
 #define FLAME_RDMA_PORT_NUM_D         ""
 #define FLAME_RDMA_BUFFER_NUM_D       ""
@@ -29,6 +29,7 @@
 #define FLAME_RDMA_SEND_QUEUE_LEN_D   "64"
 #define FLAME_RDMA_RECV_QUEUE_LEN_D   "1024"
 #define FLAME_RDMA_ENABLE_HUGEPAGE_D  "true"
+#define FLAME_RDMA_HUGEPAGE_SIZE_D    "2M"
 #define FLAME_RDMA_ENABLE_SRQ_D       "true"
 #define FLAME_RDMA_CQ_PAIR_NUM_D      "1"
 #define FLAME_RDMA_TRAFFIC_CLASS_D    "0"
@@ -55,7 +56,7 @@ class MsgConfig{
     FlameContext *fct;
 
     void perr_arg(const std::string &v){
-        clog(v);
+        clog(fmt::format("load configure file error : {}", v));
     }
 
 public:

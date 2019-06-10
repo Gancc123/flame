@@ -40,7 +40,7 @@ protected:
         mct->config->rdma_mem_min_level = 10; // 1KB
         mct->config->rdma_mem_max_level = RDMA_MEM_MAX_LEVEL; 
 
-        if(mct->init(nullptr, nullptr)){
+        if(mct->init(nullptr)){
             return ;
         }
 

@@ -170,12 +170,13 @@ static void msg_run(void *arg1, void *arg2){
     RdmaMsger *rdma_msger = (RdmaMsger *)arg2;
 
     ML(mct, info, "before msg module init");
-    mct->init(rdma_msger, nullptr);
+    mct->init(rdma_msger);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,
                                          mct->config->msger_id.port);
     clog("app init done.");
+    clog("type CTRL+C to quit.");
 
     send_first_msg(mct);
 }

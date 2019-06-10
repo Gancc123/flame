@@ -77,9 +77,9 @@ public:
     // rename an volume. not support now
     // int vol_rename(const std::string& group, const std::string& src, const std::string& dst);
     // move an volume to another group.
-    int vol_move(const std::string& group, const std::string& name, const std::string& target);
+    // int vol_move(const std::string& group, const std::string& name, const std::string& target);
     // clone an volume
-    int vol_clone(const std::string& src_group, const std::string& src_name, const std::string& dst_group, const std::string& dst_name);
+    // int vol_clone(const std::string& src_group, const std::string& src_name, const std::string& dst_group, const std::string& dst_name);
     // read info of volume.
     int vol_meta(const std::string& group, const std::string& name, VolumeMeta& info);
     // open an volume, and return the io context of volume.
@@ -100,28 +100,22 @@ private:
 
 class FLAME_API Volume {
 public:
-    std::string get_id();
+    uint64_t get_id();
     std::string get_name();
     std::string get_group();
     uint64_t size();
     VolumeMeta get_meta();
 
-    // manage
-    int resize(uint64_t size);
-    int lock();
-    int unlock();
-
-    // sync io call
-    int read(const BufferList& buffs, uint64_t offset, uint64_t len);
-    int write(const BufferList& buffs, uint64_t offset, uint64_t len);
-    int reset(uint64_t offset, uint64_t len);
-    int flush();
+    // manage: not support, now
+    // int resize(uint64_t size);
+    // int lock();
+    // int unlock();
 
     // async io call
-    int aio_read(const BufferList& buffs, uint64_t offset, uint64_t len, const AioCompletion& cpl);
-    int aio_write(const BufferList& buffs, uint64_t offset, uint64_t len, const AioCompletion& cpl);
-    int aio_reset(uint64_t offset, uint64_t len, const AioCompletion& cpl);
-    int aio_flush(const AioCompletion& cpl);
+    int read(const BufferList& buffs, uint64_t offset, uint64_t len, const AsyncCallback& cb);
+    int write(const BufferList& buffs, uint64_t offset, uint64_t len, const AsyncCallback& cb);
+    int reset(uint64_t offset, uint64_t len, const AsyncCallback& cb);
+    int flush(const AsyncCallback& cb);
 
 private:
     Volume();
@@ -135,7 +129,10 @@ public:
     VolumeAttr(uint64_t size) : size_(size), prealloc_(false) {}
     ~VolumeAttr() {}
 
+    uint64_t get_size() const { return size_; }
     void set_size(uint64_t s) { size_ = s; }
+
+    bool is_prealloc() const { return prealloc_; }
     void set_prealloc(bool prealloc) { prealloc_ = prealloc; }
 
 private:
@@ -145,19 +142,27 @@ private:
 
 class FLAME_API VolumeMeta {
 public:
+    VolumeMeta() {}
     ~VolumeMeta() {}
     
-    std::string& get_name() { return name_; }
-    std::string& get_group() { return group_; }
-    uint64_t get_size() { return size_; }
-    uint64_t get_ctime() { return ctime_; }
-    bool is_prealloc() { return prealloc_; }
+    uint64_t get_id() const { return id_; }
+    std::string& get_name() const { return name_; }
+    std::string& get_group() const { return group_; }
+    uint64_t get_size() const { return size_; }
+    uint64_t get_ctime() const { return ctime_; }
+    bool is_prealloc() const { return prealloc_; }
 
 private:
-    VolumeMeta() {}
-
     friend class Volume;
 
+    void set_id(uint64_t id) { id_ = id; }
+    void set_name(const std::string& name) { name_ = name; }
+    void set_group(const std::string& group) { group_ = group; }
+    void set_size(uint64_t size) { size_ = size; }
+    void set_ctime(uint64_t ctime) { ctime_ = ctime; }
+    void set_prealloc(bool v) { prealloc_ = v; } 
+
+    uint64_t id_;
     std::string name_;
     std::string group_;
     uint64_t size_;

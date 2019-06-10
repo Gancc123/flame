@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
     mct->config->rdma_mem_min_level = 14; // 16KB
     mct->config->rdma_mem_max_level = 30; // 1GB
 
-    if(mct->init(nullptr, nullptr)){
+    if(mct->init(nullptr)){
         return 0;
     }
 

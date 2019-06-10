@@ -11,3 +11,5 @@ add_subdirectory(libchunk)
 add_subdirectory(chunkstore)
 
 
+add_subdirectory(memzone)
+

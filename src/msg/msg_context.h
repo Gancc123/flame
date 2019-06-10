@@ -14,12 +14,6 @@ class MsgManager;
 class MsgerCallback;
 class MsgDispatcher;
 
-class CsdAddrResolver{
-public:
-    virtual int pull_csd_addr(std::list<csd_addr_t>& res,
-                                 const std::list<uint64_t>& csd_id_list) = 0;
-};
-
 enum class msg_module_state_t{
     INIT,
     RUNNING,
@@ -34,8 +28,6 @@ struct MsgContext{
     FlameContext *fct;
     MsgConfig *config;
     MsgManager *manager;
-    MsgDispatcher *dispatcher;
-    CsdAddrResolver *csd_addr_resolver;
     msg_module_state_t state;
     uint32_t bind_core; //only for SPDK mode.
     
@@ -48,14 +40,14 @@ struct MsgContext{
     void *fin_arg2;
 
     explicit MsgContext(FlameContext *c)
-    : fct(c), config(nullptr), manager(nullptr), csd_addr_resolver(nullptr),
-      dispatcher(nullptr), state(msg_module_state_t::INIT), bind_core(0),
+    : fct(c), config(nullptr), manager(nullptr),
+      state(msg_module_state_t::INIT), bind_core(0),
       clear_done_cb(nullptr), fin_cb(nullptr), 
       thr_fin_mutex(), thr_fin_cond(thr_fin_mutex), thr_fin_ok(false) {};
 
     int load_config();
 
-    int init(MsgerCallback *msger_cb, CsdAddrResolver *r);
+    int init(MsgerCallback *msger_cb);
     int fin();
     void clear_done_notify();
     void finally_fin();

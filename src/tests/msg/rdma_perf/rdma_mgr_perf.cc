@@ -58,7 +58,7 @@ int main(int argc, char *argv[]){
     mct->config->set_rdma_max_inline_data(std::string(options.get("inline")));
 
     ML(mct, info, "before msg module init");
-    mct->init(rdma_msger, nullptr);
+    mct->init(rdma_msger);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,

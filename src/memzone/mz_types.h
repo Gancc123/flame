@@ -2,5 +2,6 @@
 #define FLAME_MEMZONE_MZ_TYPES_H
 
 #define MZ_TYPE_STD 1
+#define MZ_TYPE_RDMA 2
 
 #endif // !FLAME_MEMZONE_MZ_TYPES_H

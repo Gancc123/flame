@@ -179,6 +179,16 @@ add_library(chunkstore-objs OBJECT
 list(APPEND obj_modules chunkstore)
 
 
+#### memory
+add_library(memory-objs OBJECT
+    memzone/rdma/BuddyAllocator.cc
+    memzone/rdma/memory_conf.cc
+    memzone/rdma/RdmaMem.cc
+    memzone/rdma_mz.cc
+    )
+list(APPEND obj_modules memory)
+
+
 #### msg
 set(msg_common_srcs
     msg/internal/errno.cc
@@ -194,8 +204,7 @@ set(msg_common_srcs
     msg/MsgManager.cc
     msg/socket/TcpListenPort.cc
     msg/socket/TcpConnection.cc
-    msg/socket/TcpStack.cc
-    msg/dispatcher/MsgDispatcher.cc)
+    msg/socket/TcpStack.cc)
 
 set(msg_rdma_common_srcs)
 if(HAVE_RDMA)
@@ -231,7 +240,6 @@ add_library(msg-objs OBJECT
     msg/socket/TcpListenPort.cc
     msg/socket/TcpConnection.cc
     msg/socket/TcpStack.cc
-    msg/dispatcher/MsgDispatcher.cc
     ${msg_common_srcs}
     ${msg_rdma_common_srcs}
     ${msg_spdk_srcs}
@@ -275,6 +283,7 @@ add_library(csd-objs OBJECT
     csd/csd_admin.cc
     )
 list(APPEND obj_modules csd)
+
 
 #### libchunk 
 add_library(libchunk-objs OBJECT
@@ -379,7 +388,6 @@ target_link_libraries(csm PRIVATE
     ${flame_grpc_deps}
     )
 
-add_subdirectory(examples)
 add_subdirectory(tests)
 
 add_subdirectory(libflame)

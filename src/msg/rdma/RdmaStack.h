@@ -21,7 +21,7 @@ namespace flame{
 namespace msg{
 
 /**
- * ibv_send_wr->wr_id must be the pointer to RdmaSendWr/RdmaRecvWr
+ * ibv_send_wr/ibv_recv_wr->wr_id must be the pointer to RdmaSendWr/RdmaRecvWr
  */
 class RdmaSendWr{
 public:
@@ -50,8 +50,11 @@ public:
      */
     virtual void on_recv_done(RdmaConnection *conn, ibv_wc &cqe) = 0;
     /**
-     * When ibv_post_send() failed or conn is closed, call this func.
-     * When ibv_post_send() failed, err will be true, and eno is the errno.
+     * When ibv_post_recv()/ibv_srq_post_recv() failed or conn is closed, 
+     * call this func.
+     * 
+     * When ibv_post_recv()/ibv_srq_post_recv() failed, err will be true,
+     *  and eno is the errno.
      * When conn is closed, err will be false.
      */
     virtual void on_recv_cancelled(bool err, int eno=0) = 0;

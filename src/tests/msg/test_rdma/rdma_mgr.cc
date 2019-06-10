@@ -31,7 +31,7 @@ int main(){
     auto incre_msger = new IncreMsger(mct);
 
     ML(mct, info, "before msg module init");
-    mct->init(incre_msger, nullptr);
+    mct->init(incre_msger);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,

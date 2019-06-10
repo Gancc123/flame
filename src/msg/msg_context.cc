@@ -36,7 +36,7 @@ int MsgContext::load_config(){
     return 0;
 }
 
-int MsgContext::init(MsgerCallback *msger_cb, CsdAddrResolver *r){
+int MsgContext::init(MsgerCallback *msger_cb){
     int ret = 0;
     std::string transport;
     std::string address;
@@ -70,19 +70,6 @@ int MsgContext::init(MsgerCallback *msger_cb, CsdAddrResolver *r){
 
     g_msg_log_level = config->msg_log_level;
 
-    if(msger_cb == nullptr){
-        ML(this, info, "init MsgDispatcher");
-        dispatcher = new MsgDispatcher(this);
-        msger_cb = dispatcher;
-    }else{
-        ML(this, info, "use custom MsgerCallback, not init MsgDispatcher.");
-    }
-
-    csd_addr_resolver = r;
-    if(csd_addr_resolver == nullptr){
-        ML(this, warn, "CsdAddrResolver is null, can't resolve csd addrs!");
-    }
-
     msg_manager = new MsgManager(this, config->msg_worker_num);
     msg_manager->set_msger_cb(msger_cb);
 
@@ -95,7 +82,6 @@ int MsgContext::init(MsgerCallback *msger_cb, CsdAddrResolver *r){
         goto err_manager;
     }
     ML(this, trace, "##### init all stack end #####");
-
     
     for(const auto &listen_port : config->node_listen_ports){
         std::tie(transport, address, min_port, max_port) = listen_port;
@@ -143,11 +129,6 @@ err_manager:
     if(manager){
         delete manager;
         manager = nullptr;
-    }
-err_dispatcher:
-    if(dispatcher){
-        delete dispatcher;
-        dispatcher = nullptr;
     }
 err_config:
     if(config){
@@ -215,6 +196,7 @@ int MsgContext::fin(){
                 ML(this, trace, "##### msg manager stop end #####");
                 
                 if(this->clear_done_cb){
+                    ML(this, trace, "##### call clear_done_cb() #####");
                     this->clear_done_cb(this->clear_done_arg1,
                                         this->clear_done_arg2);
                 }else{
@@ -233,11 +215,6 @@ int MsgContext::fin(){
                 delete manager;
                 manager = nullptr;
             }
-
-            if(dispatcher){
-                delete dispatcher;
-                dispatcher = nullptr;
-            }
             
             if(config){
                 delete config;
@@ -247,6 +224,7 @@ int MsgContext::fin(){
             next_ready = true;
         }else if(this->state == msg_module_state_t::FIN){
             if(this->fin_cb){
+                ML(this, trace, "##### call fin_cb() #####");
                 this->fin_cb(this->fin_arg1, this->fin_arg2);
             }
             break; //fin() is done.

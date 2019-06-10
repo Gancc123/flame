@@ -64,7 +64,7 @@ int main(){
     ML(mct, info, "load cfg: " CFG_PATH);
     
     ML(mct, info, "before msg module init");
-    mct->init(nullptr, nullptr);
+    mct->init(nullptr);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,

@@ -31,7 +31,7 @@ int main(){
     auto rdma_msger = new RdmaMsger(mct);
 
     ML(mct, info, "before msg module init");
-    mct->init(rdma_msger, nullptr);
+    mct->init(rdma_msger);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,

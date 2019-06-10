@@ -54,7 +54,7 @@ int main(int argc, char *argv[]){
     mct->config->set_msg_log_level(std::string(options.get("log_level")));
 
     ML(mct, info, "before msg module init");
-    mct->init(msger, nullptr);
+    mct->init(msger);
     ML(mct, info, "after msg module init");
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,

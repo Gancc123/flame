@@ -47,7 +47,7 @@ int main(){
 
     IncreMsger *msger = new IncreMsger(mct);
 
-    mct->init(msger, nullptr);
+    mct->init(msger);
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,
                                          mct->config->msger_id.port);
