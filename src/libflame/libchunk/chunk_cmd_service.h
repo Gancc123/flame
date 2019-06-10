@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-13 15:07:59
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2019-05-27 10:10:55
+ * @LastEditTime: 2019-06-10 14:47:28
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
 #define FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
@@ -18,6 +18,7 @@
 #include "msg/msg_core.h"
 #include "libflame/libchunk/msg_handle.h"
 #include "libflame/libchunk/log_libchunk.h"
+#include "csd/csd_context.h"
 
 namespace flame {
 
@@ -27,32 +28,6 @@ inline void io_cb_func(RdmaWorkRequest* req){
     req->status = RdmaWorkRequest::Status::EXEC_DONE;
     req->run();
     return ;
-}
-/**
- * @name: chunk_io_rw_mem
- * @describtions:  模拟io从硬盘到RDMA内存的过程
- * @param   chk_id_t    chunk_id            chunk的id
- *          chk_off_t   offset              访问chunk的偏移
- *          uint32_t    len                 读/写长度
- *          uint64_t    laddr               本地的RDMA内存
- *          bool        rw                  判断 读/写 标志
- * @return: 
- */
-inline int chunk_io_rw_mem(chk_id_t chunk_id, chk_off_t offset, uint32_t len, uint64_t laddr, bool rw, io_cb_fn_t cb_fn, RdmaWorkRequest* cb_arg){
-    if(rw){ //**write
-        char *disk = new char[len];
-        FlameContext* fct = FlameContext::get_context();
-        fct->log()->ltrace("%c%c%c",((char *)laddr)[0], ((char *)laddr)[1], ((char *)laddr)[2]); 
-        memcpy(disk, (void *)laddr, len); 
-        fct->log()->ltrace("write simdisk done");
-    }
-    else{   //**read
-        char *disk = new char[len];
-        strcpy(disk,"abcdefghijklmnopq");
-        memcpy((void *)laddr, disk, len);
-    }
-    cb_fn(cb_arg);
-    return RC_SUCCESS;
 }
 
 
@@ -136,12 +111,42 @@ public:
             return 0;
         }
         return 0;
-
     }
 
-    ReadCmdService():CmdService(){}
+    ReadCmdService(CsdContext *cct):CmdService(), cct_(cct){}
     
     virtual ~ReadCmdService() {}
+private:
+    CsdContext cct_;
+
+    /**
+     * @name: chunk_io_rw_mem
+     * @describtions:  模拟io从硬盘到RDMA内存的过程
+     * @param   chk_id_t    chunk_id            chunk的id
+     *          chk_off_t   offset              访问chunk的偏移
+     *          uint32_t    len                 读/写长度
+     *          uint64_t    laddr               本地的RDMA内存
+     *          bool        rw                  判断 读/写 标志
+     * @return: 
+     */
+    inline int chunk_io_rw_mem(chk_id_t chunk_id, chk_off_t offset, uint32_t len, uint64_t laddr, bool rw, io_cb_fn_t cb_fn, RdmaWorkRequest* cb_arg){
+        if(rw){ //**write
+            char *disk = new char[len];
+            FlameContext* fct = FlameContext::get_context();
+            fct->log()->ltrace("%c%c%c",((char *)laddr)[0], ((char *)laddr)[1], ((char *)laddr)[2]); 
+            // memcpy(disk, (void *)laddr, len);
+            std::shared_ptr<Chunk> chunk = cct_->cs()->chunk_open(123);
+
+            chunk->write_async((void *)laddr, offset, len, cb_fn, (void *)cb_arg); 
+            fct->log()->ltrace("write nvmestore done");
+        }
+        else{   //**read
+            char *disk = new char[len];
+            strcpy(disk,"abcdefghijklmnopq");
+            memcpy((void *)laddr, disk, len);
+        }
+        return RC_SUCCESS;
+    }
 }; // class ReadCmdService
 
 
@@ -207,9 +212,11 @@ public:
 
     }
 
-    WriteCmdService() : CmdService(){}
+    WriteCmdService(CsdContext* cct) : CmdService(), cct_(cct){}
 
     virtual ~WriteCmdService() {}
+private:
+    CsdContext cct_;
 }; // class WriteCmdService
 
 

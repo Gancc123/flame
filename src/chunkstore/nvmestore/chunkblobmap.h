@@ -126,6 +126,7 @@ public:
         pthread_mutex_lock(&create_mutex);
         while(!created)
             pthread_cond_wait(&create_cond, &create_mutex);
+        created = false;
         pthread_mutex_unlock(&create_mutex);
     }
 
@@ -141,6 +142,7 @@ public:
         pthread_mutex_lock(&load_mutex);
         while(!loaded)
             pthread_cond_wait(&load_cond, &load_mutex);
+        loaded = false;
         pthread_mutex_unlock(&load_mutex);
 
     }
@@ -173,6 +175,7 @@ public:
         pthread_mutex_lock(&close_mutex);
         while(!closed)
             pthread_cond_wait(&close_cond, &close_mutex);
+        closed = false;
         pthread_mutex_unlock(&close_mutex);
     }
 

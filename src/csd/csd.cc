@@ -16,6 +16,12 @@
 
 #include "csd/log_csd.h"
 
+#include "libflame/libchunk/libchunk.h"
+#include "libflame/libchunk/log_libchunk.h"
+#include "include/cmd.h"
+#include "include/csdc.h"
+#include "libflame/libchunk/chunk_cmd_service.h"
+
 #include "include/spdk_common.h"
 
 #include <memory>
@@ -174,11 +180,11 @@ int CSD::init(CsdCli* csd_cli) {
         return 2;
     }
 
-    // 初始化MGR
-    if (!init_mgr()) {
-        cct_->log()->lerror("init mgr faild");
-        return 3;
-    }
+    // // 初始化MGR
+    // if (!init_mgr()) {
+    //     cct_->log()->lerror("init mgr faild");
+    //     return 3;
+    // }
 
     // 初始化ChunkStore
     if (!init_chunkstore(csd_cli->force_format)) {
@@ -186,34 +192,36 @@ int CSD::init(CsdCli* csd_cli) {
         return 4;
     }
 
-    // 初始化CsdServer
-    if (!init_server()) {
-        cct_->log()->lerror("init server faild");
-        return 5;
-    }
+    // // 初始化CsdServer
+    // if (!init_server()) {
+    //     cct_->log()->lerror("init server faild");
+    //     return 5;
+    // }
 
     return 0;
 }
 
 int CSD::run() {
-    if (!server_) return -1;
+    // if (!server_) return -1;
 
-    if (!csd_register()) {
-        cct_->log()->lerror("csd register faild");
-        return 1;
-    }
+    // if (!csd_register()) {
+    //     cct_->log()->lerror("csd register faild");
+    //     return 1;
+    // }
 
-    if (!csd_run_server()) {
-        cct_->log()->lerror("csd run server faild");
-        return 2;
-    }
+    // if (!csd_run_server()) {
+    //     cct_->log()->lerror("csd run server faild");
+    //     return 2;
+    // }
 
-    if (!csd_sign_up()) {
-        cct_->log()->lerror("csd sign up faild");
-        return 3;
-    }
+    // if (!csd_sign_up()) {
+    //     cct_->log()->lerror("csd sign up faild");
+    //     return 3;
+    // }
 
-    return csd_wait();
+    // return csd_wait();
+    getchar();
+    return 1;
 }
 
 void CSD::down() {
@@ -425,6 +433,17 @@ bool CSD::init_chunkstore(bool force_format) {
     }
 
     cct_->cs(cs);
+
+    CmdServiceMapper *cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper();
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_READ, new ReadCmdService(cct_));
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_));
+    FlameContext* flame_context = FlameContext::get_context();
+    CmdServerStubImpl* cmd_sever_stub = new CmdServerStubImpl(flame_context);
+    chunk_create_opts_t opts;
+    opts.set_prealloc(true);
+   
+    cs->chunk_create(123, opts);
+    flame_context->log()->ltrace("CmdSeverStub created!");
 
     return true;
 }

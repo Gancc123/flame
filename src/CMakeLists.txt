@@ -345,6 +345,7 @@ add_executable(csd
     ${proto_objs}
     ${work_objs}
     ${mgr_objs}
+    ${libchunk_objs}
     service/internal_client.cc
     service/csds_service.cc
     )
