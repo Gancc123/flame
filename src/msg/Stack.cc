@@ -61,7 +61,8 @@ bool Stack::is_all_clear_done(){
         return false;
     }
 #ifdef HAVE_RDMA
-    if(!Stack::get_rdma_stack()->is_clear_done()){
+    if(Stack::mct->config->rdma_enable
+        && !Stack::get_rdma_stack()->is_clear_done()){
         return false;
     }
 #endif

@@ -27,7 +27,7 @@ target_link_libraries(flame_test_msg_manager common)
 add_custom_command(
     TARGET flame_test_msg_manager POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/flame_manager.cfg
+            ${CMAKE_CURRENT_SOURCE_DIR}/flame_mgr.cfg
             ${OUTPUT_DIR})
 
 set_target_properties(flame_test_msg_manager
