@@ -238,11 +238,16 @@ public:
     explicit RdmaMsger(MsgContext *c, perf_config_t *cfg=nullptr) 
     : mct(c), config(cfg), rw_buffers(cfg->depth, nullptr) {};
     virtual void on_conn_recv(Connection *conn, Msg *msg) override;
+    virtual void on_rdma_env_ready() override;
     void clear_rw_buffers(){
         auto allocator = Stack::get_rdma_stack()->get_rdma_allocator();
         allocator->free_buffers(rw_buffers);
     }
 };
+
+void RdmaMsger::on_rdma_env_ready(){
+    ML(mct, info, "RDMA Env Ready!");
+}
 
 void RdmaMsger::on_mem_push_req(Connection *conn, Msg *msg){
     assert(msg->has_rdma());

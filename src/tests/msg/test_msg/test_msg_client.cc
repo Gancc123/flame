@@ -47,7 +47,12 @@ int main(){
 
     IncreMsger *msger = new IncreMsger(mct);
 
-    mct->init(msger);
+    if(mct->init(msger)){
+        clog("msg module init failed!");
+        delete msger;
+        delete mct;
+        return 0;
+    }
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,
                                          mct->config->msger_id.port);

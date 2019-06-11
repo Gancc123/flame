@@ -21,6 +21,7 @@ public:
     friend class IncreCb;
     explicit IncreMsger(MsgContext *c) : mct(c) {};
     virtual void on_conn_recv(Connection *conn, Msg *msg) override;
+    virtual void on_rdma_env_ready() override;
 };
 
 int msg_incre_d::encode(MsgBufferList &bl){
@@ -48,6 +49,10 @@ void IncreMsger::on_conn_recv(Connection *conn, Msg *msg){
     conn->send_msg(req_msg);
     req_msg->put();
     return;
+}
+
+void IncreMsger::on_rdma_env_ready(){
+    ML(mct, info, "RDMA Env ready!");
 }
 
 } //namespace msg

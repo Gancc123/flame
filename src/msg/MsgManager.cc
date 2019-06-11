@@ -278,7 +278,6 @@ int MsgManager::del_session(msger_id_t msger_id){
     return 0;
 }
 
-
 int MsgManager::start(){
     ML(mct, trace, "");
     clear_done = false;
@@ -311,6 +310,7 @@ int MsgManager::clear_before_stop(){
     }
     session_map.clear();
     clear_done = true;
+    return 0;
 }
 
 int MsgManager::stop(){
@@ -323,7 +323,6 @@ int MsgManager::stop(){
     }
     return 0;
 }
-
 
 void MsgManager::on_listen_accept(ListenPort *lp, Connection *conn){
     conn->get();

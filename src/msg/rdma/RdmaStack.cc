@@ -842,6 +842,9 @@ RdmaManager::~RdmaManager(){
 int RdmaManager::init(){
     int res = (m_ib.init()?0:1);
     if(res) return res;
+    if(mct->manager->get_msger_cb()){
+        mct->manager->get_msger_cb()->on_rdma_env_ready();
+    }
     int msg_worker_num = mct->manager->get_worker_num();
     auto worker = mct->manager->get_worker(0); //use the first worker
     assert(worker);
