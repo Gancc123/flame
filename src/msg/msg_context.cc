@@ -5,7 +5,6 @@
 #include "Message.h"
 #include "Stack.h"
 #include "MsgManager.h"
-#include "msg/dispatcher/MsgDispatcher.h"
 
 #ifdef HAVE_RDMA
     #include "msg/rdma/RdmaStack.h"
@@ -183,7 +182,8 @@ int MsgContext::fin(){
             Stack::clear_all_before_stop();
             ML(this, trace, "##### stack clear_all_before_stop end #####");
         }else if(this->state == msg_module_state_t::CLEARING){
-            if(config->msg_worker_type == msg_worker_type_t::THREAD){
+            if(config->msg_worker_type == msg_worker_type_t::THREAD
+                && config->rdma_enable){
                 ML(this, info, "wait for clear done....");
                 thr_fin_wait();
             }
