@@ -5,8 +5,18 @@
 #include "include/csdc.h"
 #include "libflame/libchunk/log_libchunk.h"
 
-#define CFG_PATH "flame_client.cfg"
+#include "common/context.h"
+#include "common/log.h"
+#include "util/spdk_common.h"
+#include "memzone/rdma_mz.h"
+
 using namespace flame;
+using namespace flame::memory;
+using namespace flame::memory::ib;
+using namespace flame::msg;
+using FlameContext = flame::FlameContext;
+
+#define CFG_PATH "flame_client.cfg"
 
 void cb_func(const Response& res, void* arg){
     char* mm = (char*)arg;
@@ -20,56 +30,86 @@ void cb_func2(const Response& res, void* arg){
     return ;
 }
 
-int main(){
+static void test_libchunk(void *arg1, void *arg2){
     FlameContext *flame_context = FlameContext::get_context();
     if(!flame_context->init_config(CFG_PATH)){
         clog("init config failed.");
-        return -1;
+        return ;
     }
     if(!flame_context->init_log("", "TRACE", "client")){
         clog("init log failed.");
-        return -1;
+        return ;
     }
 
+    // MemoryConfig *mem_cfg = MemoryConfig::load_config(flame_context);
+    // assert(mem_cfg);
+    std::cout << "load config completed.." << std::endl;
+
     std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub("127.0.0.1", 7778);
-    /* 无inline的读取chunk的操作 */
-    RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
-    msg::ib::RdmaBufferAllocator* allocator = msg::Stack::get_rdma_stack()->get_rdma_allocator();
-    msg::ib::RdmaBuffer* buf_read = allocator->alloc(1 << 22); //4MB
-    MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read->buffer(), (uint32_t)buf_read->size(), buf_read->rkey(), 1);
-    cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
-    ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 0, 0, 8192, *memory_read); 
-    cmd_client_stub->submit(*rdma_work_request_read, &cb_func, (void *)buf_read->buffer());
+    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
 
     /* 无inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write= cmd_client_stub->get_request();
-    msg::ib::RdmaBuffer* buf_write = allocator->alloc(1 << 22); //4MB
-    char a[8] = "1234567";
-    memcpy(buf_write->buffer(), a, 8);
-    MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write->buffer(), (uint32_t)buf_write->size(), buf_write->rkey(), 1);
+    Buffer buf_write = allocator->allocate(1 << 22); //4MB
+    char a[10] = "123456789";
+    memcpy(buf_write.addr(), a, 8);
+    MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write.addr(), (uint32_t)buf_write.size(), buf_write.rkey(), 1);
     cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
-    ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 0, 0, 10, *memory_write, 0); 
+    ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 123, 0, 4096, *memory_write, 0); 
     cmd_client_stub->submit(*rdma_work_request_write, &cb_func2, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
 
-    /* 带inline的读取chunk的操作 */
-    RdmaWorkRequest* rdma_work_request_read_inline = cmd_client_stub->get_request();
-    cmd_t* cmd_read_inline = (cmd_t *)rdma_work_request_read_inline->command;
-    ChunkReadCmd* read_cmd_inline = new ChunkReadCmd(cmd_read_inline, 0, 0, 10); 
-    cmd_client_stub->submit(*rdma_work_request_read_inline, &cb_func, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+    /* 无inline的读取chunk的操作 */
+    RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
+    Buffer buf_read = allocator->allocate(1 << 22); //4MB
+    MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read.addr(), (uint32_t)buf_read.size(), buf_read.rkey(), 1);
+    cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
+    ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 123, 0, 8192, *memory_read); 
+    cmd_client_stub->submit(*rdma_work_request_read, &cb_func, buf_read.addr());
 
     /* 带inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write_inline = cmd_client_stub->get_request();
     cmd_t* cmd_write_inline = (cmd_t *)rdma_work_request_write_inline->command;
-    msg::ib::RdmaBuffer* buf_write_inline = rdma_work_request_write_inline->get_data_buf();
+    Buffer buf_write_inline = rdma_work_request_write_inline->get_data_buf();
     char b[8] = "9876543";
-    memcpy(buf_write_inline->buffer(), b, 8);
-    MemoryArea* memory_write_inline = new MemoryAreaImpl((uint64_t)buf_write_inline->buffer(),\
-                     (uint32_t)buf_write_inline->size(), buf_write_inline->rkey(), 1);
-    ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 0, 0, 10, *memory_write_inline, 1); 
+    memcpy(buf_write_inline.addr(), b, 8);
+    MemoryArea* memory_write_inline = new MemoryAreaImpl((uint64_t)buf_write_inline.addr(),\
+                     (uint32_t)buf_write_inline.size(), buf_write_inline.rkey(), 1);
+    ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 123, 0, 4096, *memory_write_inline, 1); 
     cmd_client_stub->submit(*rdma_work_request_write_inline, &cb_func2, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+
+    /* 带inline的读取chunk的操作 */
+    RdmaWorkRequest* rdma_work_request_read_inline = cmd_client_stub->get_request();
+    cmd_t* cmd_read_inline = (cmd_t *)rdma_work_request_read_inline->command;
+    ChunkReadCmd* read_cmd_inline = new ChunkReadCmd(cmd_read_inline, 123, 0, 4096); 
+    cmd_client_stub->submit(*rdma_work_request_read_inline, &cb_func, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+
 
     std::getchar();
     flame_context->log()->ltrace("Start to exit!");
+    buf_write.clear();
+    buf_read.clear();
+    buf_write_inline.clear();
+    spdk_app_stop(0);
+}
 
-    return 0;
+int main(int argc, char *argv[])
+{
+    int rc = 0;
+    struct spdk_app_opts opts = {};
+    spdk_app_opts_init(&opts);
+    opts.name = "libchunk_test";
+    opts.reactor_mask = "0x300";
+    opts.rpc_addr = "/var/tmp/spdk_libchunk_c.sock";
+    opts.master_core = 8;
+
+    rc = spdk_app_start(&opts, test_libchunk, nullptr, nullptr);
+    if(rc) {
+        SPDK_NOTICELOG("spdk app start: ERROR!\n");
+    } else {
+        SPDK_NOTICELOG("SUCCESS!\n");
+    }
+
+    spdk_app_fini();
+
+    return rc;
 }

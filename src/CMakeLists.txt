@@ -354,11 +354,13 @@ add_executable(csd
     ${proto_objs}
     ${work_objs}
     ${mgr_objs}
+    ${msg_objs}
     ${libchunk_objs}
+    ${memory_objs}
     service/internal_client.cc
     service/csds_service.cc
     )
-target_link_libraries(csd PRIVATE 
+target_link_libraries(csd PRIVATE
     ${CMAKE_DL_LIBS}
     common 
     ${AIO_LIBS}

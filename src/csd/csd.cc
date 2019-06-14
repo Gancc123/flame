@@ -23,6 +23,7 @@
 #include "libflame/libchunk/chunk_cmd_service.h"
 
 #include "include/spdk_common.h"
+#include "memzone/rdma_mz.h"
 
 #include <memory>
 #include <string>
@@ -114,7 +115,7 @@ public:
     friend class CsdAdminThread;
 
 private:
-    unique_ptr<CsdContext> cct_;
+    shared_ptr<CsdContext> cct_;
     unique_ptr<CsdAdminServer> server_;
     unique_ptr<InternalClientFoctory> internal_client_foctory_;
 
@@ -434,15 +435,13 @@ bool CSD::init_chunkstore(bool force_format) {
 
     cct_->cs(cs);
 
-    CmdServiceMapper *cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper();
-    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_READ, new ReadCmdService(cct_));
-    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_));
+    /*libchunk部分*/
     FlameContext* flame_context = FlameContext::get_context();
     CmdServerStubImpl* cmd_sever_stub = new CmdServerStubImpl(flame_context);
-    chunk_create_opts_t opts;
-    opts.set_prealloc(true);
-   
-    cs->chunk_create(123, opts);
+    CmdServiceMapper *cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper();
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_READ, new ReadCmdService(cct_.get()));
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_.get()));
+
     flame_context->log()->ltrace("CmdSeverStub created!");
 
     return true;

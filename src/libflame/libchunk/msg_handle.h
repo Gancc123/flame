@@ -4,6 +4,9 @@
 #include "msg/msg_core.h"
 #include "include/cmd.h"
 #include "common/thread/mutex.h"
+#include "common/context.h"
+#include "common/log.h"
+#include "memzone/rdma_mz.h"
 
 #include <deque>
 #include <sys/queue.h>
@@ -28,15 +31,13 @@ public:
         ERROR,              //**出错
     };
 private:
-    using RdmaBuffer = msg::ib::RdmaBuffer;
     msg::MsgContext *msg_context_;
     Msger* msger_;
     ibv_sge sge_[2];
-    // ibv_sge sge_data_;
     ibv_send_wr send_wr_;
     ibv_recv_wr recv_wr_;
-    RdmaBuffer* buf_;
-    RdmaBuffer* data_buf_;
+    Buffer buf_;
+    Buffer data_buf_;
     CmdService* service_;
     RdmaWorkRequest(msg::MsgContext *c, Msger *m)
     : msg_context_(c), msger_(m), status(FREE), conn(nullptr){}
@@ -59,7 +60,7 @@ public:
         return &recv_wr_;
     }
 
-    inline virtual RdmaBuffer *get_data_buf(){
+    inline virtual Buffer get_data_buf(){
         return data_buf_;
     }
 
@@ -119,6 +120,8 @@ public:
     virtual void on_conn_declared(msg::Connection *conn, msg::Session *s) override;
     virtual void on_conn_recv(msg::Connection *conn, msg::Msg *msg) override ;
     virtual int get_recv_wrs(int n, std::vector<msg::RdmaRecvWr *> &wrs) override;
+    virtual void on_rdma_env_ready() override;
+    
 
     RdmaWorkRequestPool &get_req_pool() { return pool_; }
     bool is_server() { return is_server_; }

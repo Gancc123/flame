@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2019-05-27 10:13:03
+ * @LastEditTime: 2019-06-14 15:57:28
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -14,6 +14,7 @@
 #include "libflame/libchunk/log_libchunk.h"
 #include "include/cmd.h"
 #include "libflame/libchunk/chunk_cmd_service.h"
+#include "util/spdk_common.h"
 
 namespace flame {
 
@@ -30,24 +31,17 @@ RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, M
     if(!req){
         return nullptr;
     }
-    RdmaBuffer* buffer = msg::Stack::get_rdma_stack()->get_rdma_allocator()->alloc(4096);//4KB这里的buffer会自己释放吗？
-    if(!buffer){
-        delete req;
-        return nullptr;
-    }
-    RdmaBuffer* data_buffer = msg::Stack::get_rdma_stack()->get_rdma_allocator()->alloc(4096);//4KB这里的buffer会自己释放吗？
-    if(!data_buffer){
-        delete req;
-        return nullptr;
-    }
+    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
+    Buffer buffer = allocator->allocate(4096);//4KB这里的buffer会自己释放吗？
+    Buffer data_buffer = allocator->allocate(4096);//4KB这里的buffer会自己释放吗？
     req->buf_ = buffer;
-    req->sge_[0].addr = buffer->addr();
+    req->sge_[0].addr = (uint64_t)buffer.addr();
     req->sge_[0].length = 64;
-    req->sge_[0].lkey = buffer->lkey();
+    req->sge_[0].lkey = buffer.lkey();
     req->data_buf_ = data_buffer;
-    req->sge_[1].addr = data_buffer->addr();
+    req->sge_[1].addr = (uint64_t)data_buffer.addr();
     req->sge_[1].length = 4096;
-    req->sge_[1].lkey = data_buffer->lkey();
+    req->sge_[1].lkey = data_buffer.lkey();
 
     ibv_send_wr &swr = req->send_wr_;
     memset(&swr, 0, sizeof(swr));
@@ -63,16 +57,13 @@ RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, M
     rwr.num_sge = 2;
     rwr.sg_list = req->sge_;
 
-    req->command = req->buf_->buffer();
+    req->command = req->buf_.addr();
     return req;
 }
 
 
 RdmaWorkRequest::~RdmaWorkRequest(){
-    if(buf_){
-        msg::Stack::get_rdma_stack()->get_rdma_allocator()->free(buf_);
-        buf_ = nullptr;
-    }
+    
 }
 
 //**以下四个函数都是状态机的变化，最终会调用run()来执行实际的操作
@@ -152,6 +143,9 @@ void RdmaWorkRequest::run(){
             switch(status){
                 case RECV_DONE:{
                     CmdServiceMapper* cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper(); 
+                    //std::cout << "RdmaworkRequest::run: " << spdk_env_get_current_core() << std::endl;
+                    FlameContext* fct = FlameContext::get_context();
+                    fct->log()->lerror("RdmaworkRequest::run: %u",spdk_env_get_current_core());
                     CmdService* service = cmd_service_mapper->get_service(((cmd_t *)command)->hdr.cn.cls, ((cmd_t *)command)->hdr.cn.seq);
                     this->service_ = service;
                     service_->call(this);                    
@@ -184,7 +178,7 @@ void RdmaWorkRequest::run(){
                 if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_READ){  //读操作
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
                     if(res->get_inline_len() > 0 && res->get_inline_len() <= 4096 && cb.cb_arg == nullptr){    //inline read
-                        cb.cb_fn(*(Response *)res, (void *)data_buf_->buffer());
+                        cb.cb_fn(*(Response *)res, (void *)data_buf_.addr());
                     }
                     else if(cb.cb_fn != nullptr){
                         cb.cb_fn(*(Response *)res, cb.cb_arg);
@@ -351,6 +345,22 @@ void Msger::on_conn_declared(msg::Connection *conn, msg::Session *s){
  */
 void Msger::on_conn_recv(msg::Connection *conn, msg::Msg *msg){
     ML(msg_context_, info, "I recv something.");
+};
+
+/**
+ * @name: on_rdma_env_ready
+ * @describtions: RDMA环境已设置好的回调，其中RDMA环境如protect domain等
+ * @param  
+ * @return: 
+ */
+void Msger::on_rdma_env_ready(){
+    ML(msg_context_, info, "I recv something.");
+    /*第一次需要传入参数构建全局的RdmaAllocator*/
+    FlameContext* fct = FlameContext::get_context();
+    MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
+    assert(mem_cfg);
+    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
+    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
 };
 
 } //namespace flame

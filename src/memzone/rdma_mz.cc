@@ -7,6 +7,8 @@ using namespace flame::memory::ib;
 
 namespace flame {
 
+RdmaAllocator* RdmaAllocator::g_rdma_allocator = nullptr;
+
 void RdmaAllocator::init(FlameContext *fct, flame::msg::ib::ProtectionDomain *p, MemoryConfig *_cfg) {
     allocator_ctx = new flame::memory::ib::RdmaBufferAllocator(fct, _cfg, p);
     assert(allocator_ctx);
