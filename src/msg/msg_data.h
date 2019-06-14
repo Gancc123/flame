@@ -1,5 +1,15 @@
-#ifndef FLAME_MSG_SIMPLE_ADDR_MANAGER_ADDR_MSG_H
-#define FLAME_MSG_SIMPLE_ADDR_MANAGER_ADDR_MSG_H
+/**
+ * @author: hzy (lzmyhzy@gmail.com)
+ * @brief:  消息模块内部数据定义
+ * @version: 0.1
+ * @date: 2019-05-16
+ * @copyright: Copyright (c) 2019
+ * 
+ * - msg_rdma_header_d 消息模块rdma头部(使用较少)
+ * - msg_declare_id_d 用于建立连接时交换身份信息
+ */
+#ifndef FLAME_MSG_MSG_DATA_H
+#define FLAME_MSG_MSG_DATA_H
 
 #include "msg/msg_context.h"
 #include "internal/int_types.h"

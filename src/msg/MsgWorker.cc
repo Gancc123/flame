@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 namespace flame{
 namespace msg{
 
@@ -22,15 +21,14 @@ void HandleNotifyCallBack::read_cb(){
     int r = 0;
     do {
         r = read(fd, c, sizeof(c));
-        if (r < 0) {
-            if (errno != EAGAIN){
-                ML(mct, error, "read notify pipe failed: {}",
-                                                        cpp_strerror(errno));
-            }
-        }
     } while (r > 0);
+    if (r < 0) {
+        if (errno != EAGAIN){
+            ML(mct, error, "read notify pipe failed: {}",
+                                                    cpp_strerror(errno));
+        }
+    }
 }
-
 
 int ThrMsgWorker::set_nonblock(int sd){
     int flags;
@@ -125,7 +123,6 @@ int ThrMsgWorker::add_event(EventCallBack *ecb){
 int ThrMsgWorker::del_event(int fd){
     return event_poller.del_event(fd);
 }
-
 
 void ThrMsgWorker::wakeup(){
     char buf = 'c';
