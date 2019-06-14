@@ -18,6 +18,7 @@ using FlameContext = flame::FlameContext;
 
 #define CFG_PATH "flame_client.cfg"
 
+
 void cb_func(const Response& res, void* arg){
     char* mm = (char*)arg;
     std::cout << mm[0] << mm[1] << mm[2] << std::endl; 
@@ -28,6 +29,13 @@ void cb_func(const Response& res, void* arg){
 void cb_func2(const Response& res, void* arg){
     std::cout << "222" << std::endl;
     return ;
+}
+
+
+static void msg_stop(void *arg1, void *arg2){
+    MsgContext *mct = (MsgContext *)arg1;
+    mct->finally_fin();
+    spdk_app_stop(0);
 }
 
 static void test_libchunk(void *arg1, void *arg2){
@@ -45,7 +53,7 @@ static void test_libchunk(void *arg1, void *arg2){
     // assert(mem_cfg);
     std::cout << "load config completed.." << std::endl;
 
-    std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub("127.0.0.1", 7778);
+    std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub("127.0.0.1", 7778, msg_stop);
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
 
     /* 无inline的写入chunk的操作 */
@@ -89,7 +97,6 @@ static void test_libchunk(void *arg1, void *arg2){
     buf_write.clear();
     buf_read.clear();
     buf_write_inline.clear();
-    spdk_app_stop(0);
 }
 
 int main(int argc, char *argv[])
@@ -98,9 +105,9 @@ int main(int argc, char *argv[])
     struct spdk_app_opts opts = {};
     spdk_app_opts_init(&opts);
     opts.name = "libchunk_test";
-    opts.reactor_mask = "0x300";
+    opts.reactor_mask = "0x3c0";
     opts.rpc_addr = "/var/tmp/spdk_libchunk_c.sock";
-    opts.master_core = 8;
+    opts.master_core = 6;
 
     rc = spdk_app_start(&opts, test_libchunk, nullptr, nullptr);
     if(rc) {

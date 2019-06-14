@@ -5,6 +5,7 @@
 
 #include "msg/msg_core.h"
 #include "libflame/libchunk/msg_handle.h"
+#include "msg/msg_context.h"
 
 
 namespace flame {
@@ -33,7 +34,7 @@ private:
 
 class CmdClientStubImpl : public CmdClientStub{
 public:
-    static std::shared_ptr<CmdClientStubImpl> create_stub(std::string ip_addr, int port);
+    static std::shared_ptr<CmdClientStubImpl> create_stub(std::string ip_addr, int port, msg::msg_module_cb clear_done_cb);
     
     RdmaWorkRequest* get_request();
 
@@ -43,11 +44,11 @@ public:
 
     virtual int submit(RdmaWorkRequest& req, cmd_cb_fn_t cb_fn, void* cb_arg) override;
 
-    CmdClientStubImpl(FlameContext* flame_context);
+    CmdClientStubImpl(FlameContext* flame_context, msg::msg_module_cb clear_done_cb);
 
     ~CmdClientStubImpl() {
+        // client_msger_->clear_rw_buffers();
         msg_context_->fin();
-        delete msg_context_;
     }
 
 private:
@@ -65,9 +66,7 @@ public:
 
     CmdServerStubImpl(FlameContext* flame_context);
     virtual ~CmdServerStubImpl() {
-    FLAME_MSG_INTERNAL_BITMAP_H
-        delete server_msger_;
-        delete msg_context_;
+        msg_context_->fin();
     }
 
 private:

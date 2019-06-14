@@ -43,13 +43,16 @@ cmd_ma_t MemoryAreaImpl::get() const {
  * @name: CmdClientStubImpl
  * @describtions: CmdClientStubImpl构造函数，通过FlameContext*构造MsgContext*
  * @param   FlameContext*       flame_context 
+ *          msg_module_cb       clear_done_cb       在消息模块销毁后调用的函数
  * @return: \
  */
 
 int CmdClientStubImpl::ring = 0;
-CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context)
+CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_module_cb clear_done_cb)
     :  CmdClientStub(){
     msg_context_ = new msg::MsgContext(flame_context); //* set msg_context_
+    msg_context_->clear_done_cb = clear_done_cb;
+    msg_context_->clear_done_arg1 = msg_context_;
     client_msger_ = new Msger(msg_context_, this, false);
     if(msg_context_->load_config()){
         assert(false);
@@ -94,9 +97,9 @@ int CmdClientStubImpl::_set_session(std::string ip_addr, int port){
  *          int             port        端口号
  * @return: std::shared_ptr<CmdClientStubImpl>
  */
-std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(std::string ip_addr, int port){
+std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(std::string ip_addr, int port, msg::msg_module_cb clear_done_cb){
     FlameContext* flame_context = FlameContext::get_context();
-    CmdClientStubImpl* cmd_client_stub = new CmdClientStubImpl(flame_context);
+    CmdClientStubImpl* cmd_client_stub = new CmdClientStubImpl(flame_context, clear_done_cb);
     int rc;
     rc = cmd_client_stub->_set_session(ip_addr, port);
     if(rc) return nullptr;
