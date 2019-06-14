@@ -59,10 +59,19 @@ public:
         conns.clear();
     }
 
+    /**
+     * @brief Session中的目的端监听地址是否已设置
+     * @return bool
+     */
     bool ready() const {
         return (tcp_listen_addr != nullptr) && (rdma_listen_addr != nullptr);
     }
 
+    /**
+     * @brief 获取指定类型的目的端监听端口ip/port信息
+     * @param ttypr TCP或RDMA
+     * @return ip/port信息
+     */
     NodeAddr *get_listen_addr(msg_ttype_t ttype=msg_ttype_t::TCP){
         MutexLocker l(lp_mutex);
         switch(ttype){
@@ -75,6 +84,11 @@ public:
         }
     }
 
+    /**
+     * @brief 设置远端监听端口地址
+     * @param na 由node_addr_t转型成的uint64_t 
+     * @param ttype TCP或RDMA
+     */
     void set_listen_addr(uint64_t na, msg_ttype_t ttype=msg_ttype_t::TCP){
         node_addr_t addr(na);
         NodeAddr *nap = new NodeAddr(mct, addr);
@@ -82,7 +96,11 @@ public:
         set_listen_addr(nap, ttype);
         nap->put();
     }
-
+    /**
+     * @brief 设置远端监听端口地址
+     * @param addr NodeAddr地址
+     * @param ttype TCP或RDMA
+     */
     void set_listen_addr(NodeAddr *addr, msg_ttype_t ttype=msg_ttype_t::TCP){
         if(!addr) return;
         addr->get();
@@ -105,8 +123,32 @@ public:
         }
     }
 
+    /**
+     * @brief 获取连接实例
+     * 根据连接类型和服务等级获取连接实例
+     * 如果连接不存在，将会创建连接
+     * 一般情况下，同类型同sl的连接只有一条
+     * 当通信两端同时主动建立连接时，连接可能存在两条
+     * @param ttype TCP或RDMA
+     * @param sl 服务等级
+     * @return 连接实例
+     */
     Connection *get_conn(msg_ttype_t ttype=msg_ttype_t::TCP, uint8_t sl=0);
+    /**
+     * @brief 向Session中添加连接实例
+     * 一般不需要调用此函数
+     * @param conn 连接实例
+     * @param sl 服务等级
+     * @return 0 添加成功
+     * @return < 0 添加失败
+     */
     int add_conn(Connection *conn, uint8_t sl=0);
+    /**
+     * @brief 从Session中删除连接实例
+     * @param conn 连接实例
+     * @return 0 删除成功
+     * @return < 0 删除失败
+     */
     int del_conn(Connection *conn);
 
     const msger_id_t peer_msger_id;

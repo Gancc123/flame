@@ -86,9 +86,6 @@ public:
         return is_running.load();
     }
 
-    virtual void process() override {};
-    virtual void drain() override {};
-
     static void event_call_fn(void *arg1, void *arg2);
 
     static int poller_call_fn(void *ctx);

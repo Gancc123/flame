@@ -1,3 +1,10 @@
+/**
+ * @author: hzy (lzmyhzy@gmail.com)
+ * @brief: 消息模块log宏定义
+ * @version: 0.1
+ * @date: 2019-02-19
+ * @copyright: Copyright (c) 2019
+ */
 #ifndef FLAME_MSG_MSG_DEF_H
 #define FLAME_MSG_MSG_DEF_H
 

@@ -1,3 +1,10 @@
+/**
+ * @author: hzy (lzmyhzy@gmail.com)
+ * @brief: 消息模块头文件汇总
+ * @version: 0.1
+ * @date: 2019-02-19
+ * @copyright: Copyright (c) 2019
+ */
 #ifndef FLAME_MSG_MSG_CORE_H
 #define FLAME_MSG_MSG_CORE_H
 
