@@ -50,6 +50,7 @@ public:
     Argument<string>    chunkstore  {this, CFG_CSD_CHUNKSTORE, "ChunkStore url", ""};
     Argument<uint64_t>  heart_beat  {this, CFG_CSD_HEART_BEAT_CYCLE, "heart beat cycle, unit: ms", 3000};
     Argument<string>    log_dir     {this, CFG_CSD_LOG_DIR, "log dir", "/var/log/flame"};
+    Argument<string>    rpc_addr     {this, CFG_CSD_RPC_ADDR, "rpc addr", "/var/temp/spdk_csd.sock"};
     Argument<string>    log_level   {this, CFG_CSD_LOG_LEVEL, 
         "log level. {PRINT, TRACE, DEBUG, INFO, WARN, ERROR, WRONG, CRITICAL, DEAD}", "INFO"};
 
@@ -68,6 +69,7 @@ struct app_opts {
     char reactor_mask[LINE_LENGTH];
     char nvme_conf[LINE_LENGTH];
     char print_level[LINE_LENGTH];
+    char rpc_addr[LINE_LENGTH];
 public:
     app_opts() {
 
@@ -78,12 +80,14 @@ public:
         strcpy(nvme_conf, csd_cli->nvme_conf.get().c_str());
         strcpy(reactor_mask, csd_cli->reactor_mask.get().c_str());
         strcpy(print_level, csd_cli->log_level.get().c_str());
+        strcpy(rpc_addr, csd_cli->rpc_addr.get().c_str());
     }
 
     void convert_to_spdk_app_opts(struct spdk_app_opts *opts) {
         opts->name = csd_name;
         opts->config_file = nvme_conf;
         opts->reactor_mask = reactor_mask;
+        opts->rpc_addr = rpc_addr;
 
         if(strcmp(print_level, "TRACE") == 0 || strcmp(print_level, "DEBUG")) {
             opts->print_level = SPDK_LOG_DEBUG;
@@ -134,6 +138,7 @@ private:
     string      cfg_chunkstore_url_;
     uint64_t    cfg_heart_beat_cycle_ms_;
     string      cfg_log_dir_;
+    string      cfg_rpc_addr_;
     string      cfg_log_level_;
 
     int read_config(CsdCli* csd_cli);
@@ -181,11 +186,11 @@ int CSD::init(CsdCli* csd_cli) {
         return 2;
     }
 
-    // // 初始化MGR
-    // if (!init_mgr()) {
-    //     cct_->log()->lerror("init mgr faild");
-    //     return 3;
-    // }
+    // 初始化MGR
+    if (!init_mgr()) {
+        cct_->log()->lerror("init mgr faild");
+        return 3;
+    }
 
     // 初始化ChunkStore
     if (!init_chunkstore(csd_cli->force_format)) {
@@ -193,36 +198,34 @@ int CSD::init(CsdCli* csd_cli) {
         return 4;
     }
 
-    // // 初始化CsdServer
-    // if (!init_server()) {
-    //     cct_->log()->lerror("init server faild");
-    //     return 5;
-    // }
+    // 初始化CsdServer
+    if (!init_server()) {
+        cct_->log()->lerror("init server faild");
+        return 5;
+    }
 
     return 0;
 }
 
 int CSD::run() {
-    // if (!server_) return -1;
+    if (!server_) return -1;
 
-    // if (!csd_register()) {
-    //     cct_->log()->lerror("csd register faild");
-    //     return 1;
-    // }
+    if (!csd_register()) {
+        cct_->log()->lerror("csd register faild");
+        return 1;
+    }
 
-    // if (!csd_run_server()) {
-    //     cct_->log()->lerror("csd run server faild");
-    //     return 2;
-    // }
+    if (!csd_run_server()) {
+        cct_->log()->lerror("csd run server faild");
+        return 2;
+    }
 
-    // if (!csd_sign_up()) {
-    //     cct_->log()->lerror("csd sign up faild");
-    //     return 3;
-    // }
+    if (!csd_sign_up()) {
+        cct_->log()->lerror("csd sign up faild");
+        return 3;
+    }
 
-    // return csd_wait();
-    getchar();
-    return 1;
+    return csd_wait();
 }
 
 void CSD::down() {
@@ -353,6 +356,19 @@ int CSD::read_config(CsdCli* csd_cli) {
     } else {
         cct_->log()->lerror("config[ " CFG_CSD_LOG_DIR " ] not found");
         return 8;
+    }
+
+    /**
+     * cfg_rpc_addr_
+     */
+    string rpc_addr;
+    if (csd_cli->rpc_addr.done() && !csd_cli->rpc_addr.get().empty()) {
+        cfg_rpc_addr_ = csd_cli->rpc_addr;
+    } else if (config->has_key(CFG_CSD_RPC_ADDR)) {
+        cfg_rpc_addr_ = config->get(CFG_CSD_RPC_ADDR, "");
+    } else {
+        cct_->log()->lerror("config[ " CFG_CSD_RPC_ADDR " ] not found");
+        return 9;
     }
 
     /**

@@ -9,7 +9,6 @@ add_subdirectory(msg)
 add_subdirectory(libchunk)
 # add chunkstore test
 add_subdirectory(chunkstore)
-
-
 add_subdirectory(memzone)
+add_subdirectory(libflame)
 

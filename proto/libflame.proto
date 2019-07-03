@@ -1,0 +1,293 @@
+syntax = "proto3";
+import "flame.proto";
+
+// 不带任何参数的请求头
+message NoneParaRequest{
+}
+
+// 用于仅带gw_id的请求头
+message CommonRequest{
+    uint64 gw_id = 1;   // Gateway ID
+}
+
+// 用于只返回RetCode请求的响应
+message CommonReply {
+    uint32 code = 1;    // RetCode
+    string msg  = 2;    // 消息，可为空
+}
+
+/**
+ * Gateway Set
+ */
+
+// GW/Client与MGR建立连接的请求头
+// @Reply: CommonReply
+// message ConnectRequest {
+//     uint64 gw_id        = 1;    // Gateway ID
+// 	   uint64 admin_addr   = 2;    // 控制平面地址，用于接收主动推送的信息
+// } //flame.proto重复
+
+// 集群信息响应
+// message ClusterInfoReply {
+//     string name     = 1;
+//     uint32 mgrs     = 2;    // MGR节点数量
+//     uint32 csds     = 3;    // CSD节点数量
+//     uint64 size     = 4;
+//     uint64 alloced  = 5;
+//     uint64 used     = 6;
+// }//flame.proto重复
+
+
+/**
+ * Volume Group Set
+ */
+// 列出所有的Volume Group
+
+// message VGItem {
+//     uint64 vg_id    = 1;    // volume group id
+// 	string name     = 2;
+// 	uint64 ctime    = 3;    // 创建时间
+// 	uint32 volumes  = 4;    // volume个数
+// 	uint64 size     = 5;    // 总大小
+//     uint64 alloced  = 6;    // 逻辑分配空间
+//     uint64 used     = 7;    // 实际已占用空间（B）
+// }//flame.proto重复
+
+// message VGListReply {
+//    repeated VGItem vg_list = 1;
+// }//flame.proto重复
+
+// 创建一个组
+// @Reply: CommonReply
+// message VGCreateRequest {
+// 	string vg_name = 1;    // vg name
+// }//flame.proto重复
+
+// 删除一个组
+// @Reply: CommonReply
+// message VGRemoveRequest {
+//     string vg_name = 1;    // vg name
+// }//flame.proto重复
+
+/**
+ * Volume Set
+ */
+
+// 列出指定VG下的所有Volume
+// message VolListRequest {
+//     string vg_name  = 1;
+// }//flame.proto重复
+
+// message VolumeItem {
+//     uint64 vol_id   = 1;    // Volume的唯一标识
+// 	uint64 vg_id    = 2;    // Group标识
+// 	string name     = 3;    // Volume名称
+// 	uint64 ctime    = 4;    // 创建时间
+//     uint64 chk_sz   = 5;    // Chunk Size
+// 	uint64 size     = 6;    // 可视大小（B）
+// 	uint64 alloced  = 7;    // 所需分配的空间（B）
+// 	uint64 used     = 8;    // 实际已使用空间（B）
+// 	uint32 flags    = 9;    // 标签
+// 	uint32 spolicy  = 10;   // 存储策略
+// 	uint32 chunks   = 11;   // Chunk Group 数量
+// }//flame.proto重复
+
+// message VolListReply {
+//     repeated VolumeItem vol_list = 1;
+// }//flame.proto重复
+
+// 创建一个Volume
+// @Reply: CommonReply
+// message VolCreateRequest {
+//     string vg_name  = 1;    // VG name
+//     string vol_name = 2;    // Volume名称
+//     uint64 chk_sz   = 3;    // Chunk Size
+//     uint64 size     = 4;    // 可视大小（B）
+//     uint32 flags    = 5;    // 标签
+//     uint32 spolicy  = 6;    // 存储策略
+// }//flame.proto重复
+
+// 删除一个Volume
+// @Reply: CommonReply
+// message VolRemoveRequest {
+//     string vg_name  = 1;
+//     string vol_name = 2;    // Volume名称
+// }//flame.proto重复
+
+// 查看一个指定Volume的信息
+// message VolInfoRequest {
+//     string vg_name  = 1;
+//     string vol_name = 2;
+// }//flame.proto重复
+
+// message VolInfoReply {
+//     uint32 retcode = 1;
+//     VolumeItem vol = 2;
+// }//flame.proto重复
+
+// 打开一个Volume，在MGR上注册打开信息
+// @Reply: CommonReply
+// message VolOpenRequest {
+//     uint64 gw_id    = 1;
+//     string vg_name  = 2;
+//     string vol_name = 3;
+// }//flame.proto重复
+
+message Chunk{
+    uint64 chunk_id = 1;
+    uint32 ip       = 2;
+    uint32 port     = 3;
+}
+
+// 返回操作Volume需要的信息
+// @Reply: VolOpenReply   
+message VolOpenReply {
+    uint32 retcode    = 1;
+    uint64 vol_id     = 2;
+    string vol_name   = 3;
+    string vg_name    = 4;
+    uint64 vol_size   = 5;
+    uint64 ctime      = 6;
+    bool   prealloc   = 7;
+    uint64 chk_sz     = 8;
+    uint32 spolicy   = 9;
+    repeated Chunk chunks  = 10;  //index即第几块chunk
+}
+
+// // 关闭一个Volume
+// // @Reply: CommonReply
+// message VolCloseRequest {
+//     uint64 gw_id    = 1;
+//     string vg_name  = 2;
+//     string vol_name = 3;
+// }
+
+// // 锁定一个Volume，防止其他GW打开
+// // @Reply: CommonReply
+// message VolLockRequest {
+//     uint64 gw_id    = 1;
+//     string vg_name  = 2;
+//     string vol_name = 3;
+// }
+
+// // 解锁一个Volume
+// // @Reply: CommonReply
+// message VolUnlockRequest {
+//     uint64 gw_id    = 1;
+//     string vg_name  = 2;
+//     string vol_name = 3;
+// }
+
+// // 获取Volume的Chunk信息
+// message VolMapsRequest {
+//     uint64 vol_id = 1;  // Volume的唯一标识
+// }
+
+// message ChunkItem {
+//     uint64 chk_id   = 1;    // Chunk ID
+//     uint64 vol_id   = 2;
+//     uint32 index    = 3;
+//     uint32 stat     = 4;
+//     uint32 spolicy  = 5;
+//     uint64 primary  = 6;
+// 	uint64 size     = 7;    // 可视大小（B）
+// 	uint64 csd_id   = 8;    // 当前所在CSD ID
+//     uint64 dst_id   = 9;    // 目标CSD ID（迁移）
+// }
+
+// message VolMapsReply {
+//     repeated ChunkItem chk_list = 1;
+// }
+
+/**
+ * Chunk Set
+ */
+
+// // 获取chunk的位置信息
+// message ChunkMapsRequest {
+//     repeated uint64 chk_id_list = 1;
+// }
+
+// message ChunkMapsReply {
+//     repeated ChunkItem chk_list = 1;
+// }
+
+/**
+ * LibFlameService
+ */
+service LibFlameService {
+    /**
+     * Gateway Set
+     */
+    
+    // GW注册：建立一个Gw连接
+    // rpc connect (CommonRequest) returns (CommonReply) {}
+
+    // GW注销：关闭一个GW连接
+    rpc disconnect(CommonRequest) returns (CommonReply) {}
+
+    // 获取Flame集群信息
+    rpc getClusterInfo(CommonRequest) returns (ClusterInfoReply) {}
+
+
+    /**
+     * Group Set
+     */
+    
+    // 获取所有VG信息，支持分页（需要提供<offset, limit>，以vg_name字典顺序排序）
+    rpc getVolGroupList(NoneParaRequest) returns (VGListReply);
+
+    // 创建VG
+    rpc createVolGroup(VGCreateRequest) returns (CommonReply) {}
+
+    // 删除VG
+    rpc removeVolGroup(VGRemoveRequest) returns (CommonReply) {}
+
+    // // 重命名VG
+    // rpc renameVolGroup(VGRenameRequest) returns (CommonReply) {}
+
+    /**
+     * Volume Set
+     */
+
+    // 获取指定VG内的所有Volume信息
+    rpc getVolumeList(VolListRequest) returns (VolListReply) {}
+
+    // 创建Volume
+    rpc createVolume(VolCreateRequest) returns (CommonReply) {}
+
+    // 删除Volume
+    rpc removeVolume(VolRemoveRequest) returns (CommonReply) {}
+
+    // // 重命名Volume
+    // rpc renameVolume(VolRenameRequest) returns (CommonReply) {}
+
+    // 获取Volume信息
+    rpc getVolumeInfo(VolInfoRequest) returns (VolInfoReply) {}
+
+    // // 更改Volume大小
+    // rpc resizeVolume(VolResizeRequest) returns (CommonReply) {}
+
+    // 打开Volume：在MGR登记Volume访问信息（没有加载元数据信息）
+    rpc openVolume(VolOpenRequest) returns (VolOpenReply) {}
+
+    // // 关闭Volume：在MGR消除Volume访问信息
+    // rpc closeVolume(VolCloseRequest) returns (CommonReply) {}
+
+    // // 锁定Volume：在MGR登记Volume锁定信息，防止其他GW打开Volume
+    // rpc lockVolume(VolLockRequest) returns (CommonReply) {}
+
+    // // 解锁Volume
+    // rpc unlockVolume(VolUnlockRequest) returns (CommonReply) {}
+
+    // // 获取Volume的Chunk信息
+    // rpc getVolumeMaps(VolMapsRequest) returns (VolMapsReply) {}
+
+    /**
+     * Chunk Set
+     */
+
+    // // 获取指定Chunk信息
+    // rpc getChunkMaps(ChunkMapsRequest) returns (ChunkMapsReply) {}
+    
+} // service LibFlameService 

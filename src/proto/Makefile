@@ -9,7 +9,7 @@ PROTOS_PATH = ../../proto
 
 .PHONY: all clean
 
-all: flame.pb.o flame.grpc.pb.o internal.pb.o internal.grpc.pb.o csds.pb.o csds.grpc.pb.o
+all: flame.pb.o flame.grpc.pb.o internal.pb.o internal.grpc.pb.o csds.pb.o csds.grpc.pb.o libflame.pb.o libflame.grpc.pb.o
 
 vpath %.proto $(PROTOS_PATH)
 

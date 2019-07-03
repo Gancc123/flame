@@ -3,6 +3,7 @@
 
 #include "common/context.h"
 #include "include/meta.h"
+#include "include/libflame.h"
 #include "mgr/csdm/csd_mgmt.h"
 #include "mgr/chkm/chk_mgmt.h"
 #include "spolicy/spolicy.h"
@@ -48,7 +49,7 @@ public:
     int vol_info(volume_meta_t& vol, const std::string& vg_name, const std::string& vol_name);
     int vol_resize(const std::string& vg_name, const std::string& vol_name, uint64_t new_size);
 
-    int vol_open(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name);
+    int vol_open(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name, VolumeMeta &volume_meta);
     int vol_close(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name);
     int vol_lock(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name);
     int vol_unlock(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name);

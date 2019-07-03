@@ -89,6 +89,7 @@ set(proto_srcs
     ${PROJECT_SOURCE_DIR}/proto/flame.proto
     ${PROJECT_SOURCE_DIR}/proto/gateway.proto
     ${PROJECT_SOURCE_DIR}/proto/internal.proto
+    ${PROJECT_SOURCE_DIR}/proto/libflame.proto
     )
 
 #Generate gprc proto files
@@ -112,6 +113,8 @@ list(APPEND obj_modules proto)
 add_library(service-objs OBJECT
     service/flame_service.cc
     service/flame_client.cc
+    service/libflame_service.cc
+    service/libflame_client.cc
     service/internal_service.cc
     service/internal_client.cc
     service/csds_service.cc
@@ -187,6 +190,16 @@ add_library(memory-objs OBJECT
     memzone/rdma_mz.cc
     )
 list(APPEND obj_modules memory)
+
+#### mgr
+add_library(mgr-objs OBJECT
+    mgr/mgr.cc
+    mgr/mgr_server.cc
+    mgr/chkm/chk_mgmt.cc
+    mgr/csdm/csd_mgmt.cc
+    mgr/volm/vol_mgmt.cc
+    )
+list(APPEND obj_modules mgr)
 
 
 #### msg
@@ -266,6 +279,7 @@ list(APPEND obj_modules cluster)
 #### layout
 add_library(layout-objs OBJECT
     layout/calculator.cc
+    layout/poll_layout.cc
     )
 list(APPEND obj_modules layout)
 
@@ -292,6 +306,12 @@ add_library(libchunk-objs OBJECT
     libflame/libchunk/msg_handle.cc
     )
 list(APPEND obj_modules libchunk)
+
+#### libflame
+add_library(libflame-objs OBJECT
+    libflame/libflame.cc
+    )
+list(APPEND obj_modules libflame)
 
 
 #### gen xxx_objs
@@ -347,13 +367,40 @@ set(flame_grpc_deps
     protobuf::libprotobuf
     )
 
+#### gen mgr
+add_executable(mgr 
+    ${mgr_objs}
+    ${chunkstore_objs}
+    ${proto_objs}
+    ${work_objs}
+    ${metastore_objs}
+    ${msg_objs}
+    ${orm_objs}
+    ${cluster_objs}
+    ${layout_objs}
+    ${libchunk_objs}
+    ${memory_objs}
+    ${spolicy_objs}
+    service/internal_service.cc
+    service/csds_client.cc
+    service/flame_service.cc
+    service/libflame_service.cc
+    )
+target_link_libraries(mgr PRIVATE
+    ${CMAKE_DL_LIBS}
+    common 
+    ${AIO_LIBS}
+    ${flame_grpc_deps}
+    ${SPDK_LIBRARIES}
+    mysqlcppconn
+    )
+
 #### gen csd 
 add_executable(csd 
     ${csd_objs}
     ${chunkstore_objs}
     ${proto_objs}
     ${work_objs}
-    ${mgr_objs}
     ${msg_objs}
     ${libchunk_objs}
     ${memory_objs}
@@ -393,3 +440,4 @@ target_link_libraries(csm PRIVATE
 add_subdirectory(tests)
 
 add_subdirectory(libflame)
+add_subdirectory(gtest)

@@ -268,8 +268,8 @@ const VolOpenRequest* request, FlameReply* response)
 {
     mct_->log()->ltrace("flame_service", "openVolume");
 
-    int r = mct_->volm()->vol_open(request->gw_id(), request->vg_name(), request->vol_name());
-    response->set_code(r);
+    // int r = mct_->volm()->vol_open(request->gw_id(), request->vg_name(), request->vol_name());
+    response->set_code(0);
     return Status::OK;
 }
 

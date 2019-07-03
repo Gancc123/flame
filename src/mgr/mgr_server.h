@@ -9,13 +9,14 @@
 
 #include "service/flame_service.h"
 #include "service/internal_service.h"
+#include "service/libflame_service.h"
 
 namespace flame {
 
 class MgrServer {
 public:
     MgrServer(MgrContext* mct, const std::string& addr) 
-    : mct_(mct), addr_(addr), flame_service_(mct), internal_service_(mct) { 
+    : mct_(mct), addr_(addr), flame_service_(mct), internal_service_(mct), libflame_service_(mct) { 
         __init(); 
     }
 
@@ -34,6 +35,7 @@ private:
 
     service::FlameServiceImpl flame_service_;
     service::InternalServiceImpl internal_service_;
+    service::LibFlameServiceImpl libflame_service_;
 
     grpc::ServerBuilder builder_;
     std::unique_ptr<grpc::Server> server_;
