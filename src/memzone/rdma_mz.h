@@ -23,6 +23,15 @@ private:
     void init(FlameContext *c, flame::msg::ib::ProtectionDomain *pd, MemoryConfig *_cfg);
 
 public:
+    static BufferAllocator* get_buffer_allocator(FlameContext *c = nullptr, flame::msg::ib::ProtectionDomain *pd = nullptr, MemoryConfig *_cfg = nullptr){
+        if(g_rdma_allocator == nullptr){
+            RdmaAllocator::g_rdma_allocator = new RdmaAllocator(c, pd, _cfg);
+        }
+        return RdmaAllocator::g_rdma_allocator;
+    }
+
+    static RdmaAllocator* g_rdma_allocator;
+
     RdmaAllocator(FlameContext *c, flame::msg::ib::ProtectionDomain *pd, MemoryConfig *_cfg) {
         init(c, pd, _cfg);
     }
@@ -30,6 +39,7 @@ public:
 
     RdmaBufferAllocator *get_allocator_ctx() const { return allocator_ctx; }
 
+    // virtual BufferAllocator* get_buffer_allocator() override;
     virtual Buffer allocate(size_t sz) override;
     virtual int type() const override { return BufferTypes::BUFF_TYPE_RDMA; }
     virtual size_t max_size() const override;

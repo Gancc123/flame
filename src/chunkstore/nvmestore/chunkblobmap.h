@@ -126,6 +126,7 @@ public:
         pthread_mutex_lock(&create_mutex);
         while(!created)
             pthread_cond_wait(&create_cond, &create_mutex);
+        created = false;
         pthread_mutex_unlock(&create_mutex);
     }
 
@@ -141,6 +142,7 @@ public:
         pthread_mutex_lock(&load_mutex);
         while(!loaded)
             pthread_cond_wait(&load_cond, &load_mutex);
+        loaded = false;
         pthread_mutex_unlock(&load_mutex);
 
     }
@@ -173,6 +175,7 @@ public:
         pthread_mutex_lock(&close_mutex);
         while(!closed)
             pthread_cond_wait(&close_cond, &close_mutex);
+        closed = false;
         pthread_mutex_unlock(&close_mutex);
     }
 
@@ -280,12 +283,12 @@ public:
 
 struct store_map_arg : public ChunkBlobMapOpArg {
     void *buff;
-    uint64_t buff_size;
+    uint64_t length;
 public:
     store_map_arg(ChunkBlobMap *_map, NvmeStore *_store, 
-                        int *_ret, void *_buff, uint64_t _buff_size): 
+                        int *_ret, void *_buff, uint64_t _length): 
                             ChunkBlobMapOpArg(_map, _store, _ret, STORE), 
-                            buff(_buff), buff_size(_buff_size) {
+                            buff(_buff), length(_length) {
 
     }
 };

@@ -243,7 +243,7 @@ void NvmeConf::init_core_info_core_count() {
 
     for(size_t i = 0; i < num_write_core; i++) {
         core_so_far = (core_so_far + 1) % core_count;
-        read_cores.push_back(core_so_far);
+        write_cores.push_back(core_so_far);
     }
 
     return ;
@@ -261,7 +261,7 @@ bool NvmeConf::is_valid_mask() {
 
     if(core_count > 2) {
         if(read_mask.empty() && write_mask.empty() && meta_mask.empty()) {
-            if(num_read_core == UINT32_MAX && num_write_core == UINT32_MAX) {
+            if(num_read_core == UINT32_MAX && num_write_core == UINT32_MAX) { //**没有配置项，UINT32_MAX是默认填充的
                 init_core_info_default();
                 return true;
             } else if(num_read_core >= core_count || num_write_core >= core_count || num_write_core + num_read_core >= core_count) {

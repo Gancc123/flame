@@ -263,7 +263,6 @@ private:
     uint64_t chunk_pages;           //chunk_pages: 表示每个chunk占用多少个page，在使用不等大小chunk之后，该字段被弃用
     uint64_t cluster_size;          //cluster_size: 表示nvmestore中的blobstore的cluster的大小，以字节为单位
     uint64_t total_chunks;          //total_chunks：表示该nvmestore中共有多少个chunk
-    uint16_t unit_size;             //unit_size: 用于IO的单位， 以字节为单位
     uint64_t used_size;             //used_size: nvmestore已被使用的空间大小，以字节为单位
     uint64_t format_time;           //format_time: 表示格式化的时间
     uint64_t data_cluster_count;    //data_cluster_count: 表示该nvmestore中data cluster的数量
@@ -322,7 +321,7 @@ private:
                                 blobstore(nullptr), read_channels(nullptr), write_channels(nullptr), 
                                 store_id(0), cluster_name(""), name(""), cluster_size(0), 
                                 format_time(0), used_size(0), data_cluster_count(0),
-                                meta_channel(nullptr), page_size(0), chunk_pages(0), total_chunks(0), unit_size(0),
+                                meta_channel(nullptr), page_size(0), chunk_pages(0), total_chunks(0),
                                 state(NVMESTORE_STATE_NEW), chunk_map(nullptr), chunk_blob_map(nullptr) {
         formated = false;
         pthread_mutex_init(&format_mutex, NULL);
@@ -347,7 +346,7 @@ private:
                                             read_channels(nullptr), write_channels(nullptr), meta_channel(nullptr),
                                             store_id(0), cluster_name(""), name(""), cluster_size(0), 
                                             format_time(0), used_size(0), data_cluster_count(0),
-                                            page_size(0), chunk_pages(0), total_chunks(0), unit_size(0), 
+                                            page_size(0), chunk_pages(0), total_chunks(0),
                                             state(NVMESTORE_STATE_NEW), chunk_map(nullptr), chunk_blob_map(nullptr),
                                             dev_name(_device_name), config_file(_info_file) {
 
@@ -474,7 +473,6 @@ public:
     struct spdk_io_channel *get_meta_channel();
 
     uint64_t get_page_size();
-    uint64_t get_unit_size();
     uint64_t get_cluster_size();
     uint64_t get_total_chunks();
     uint32_t get_io_core(IOChannelType type, size_t index);
@@ -550,8 +548,8 @@ private:
     pthread_mutex_t persist_mutex;
     pthread_cond_t  persist_cond;
 
-    uint64_t length_to_unit(uint64_t len);
-    uint64_t offset_to_unit(uint64_t offset);
+    uint64_t length_to_page(uint64_t len);
+    uint64_t offset_to_page(uint64_t offset);
 
     static void chunk_io_cb(void *cb_arg, int bserrno);
     static void chunk_io_start(void *arg1, void *arg2);

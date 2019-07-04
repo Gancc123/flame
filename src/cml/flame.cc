@@ -35,7 +35,7 @@ static unique_ptr<FlameClientContext> make_flame_client_context() {
     FlameContext* fct = FlameContext::get_context();
 
     FlameClient* client = new FlameClientImpl(fct, grpc::CreateChannel(
-        "192.168.3.112:6666", grpc::InsecureChannelCredentials()
+        "192.168.3.112:6677", grpc::InsecureChannelCredentials()
     ));
     
     if (!client) {
@@ -198,7 +198,7 @@ public:
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
     Serial<int>     size     {this, 3, "size", "the size of volume, unit(GB)"};
 
-    Argument<int>   chk_sz   {this, "chunk_size", "the size of chunk in this volume, unit(GB)", 4};
+    Argument<int>   chk_sz   {this, "chunk_size", "the size of chunk in this volume, unit(GB)", 1};
     Argument<string> spolicy {this, "store_policy", "the store policy of this volume", ""};
 
     Switch  prealloc    {this, "preallocate", "pre allocating the physical space for volume"};
@@ -209,7 +209,7 @@ public:
         auto cct = make_flame_client_context();
         vol_attr_t attr;
         attr.size = (uint64_t)size.get() << 30;
-        attr.chk_sz = chk_sz.get();
+        attr.chk_sz = chk_sz.get() << 30;
         attr.spolicy = 0;
         
         int r = cct->client()->create_volume(vg_name.get(), vol_name.get(), attr);

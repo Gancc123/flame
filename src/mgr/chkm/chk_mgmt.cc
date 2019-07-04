@@ -159,7 +159,7 @@ int ChunkManager::create_cg(chunk_id_t pid, int num, const chk_attr_t& attr) {
 int ChunkManager::create_vol(chunk_id_t pid, int grp, int cgn, const chk_attr_t& attr) {
     list<uint64_t> chk_ids;
     for (int g = 0; g < grp; g++) {
-        pid.set_index(pid.get_index() + g);
+         pid.set_index(pid.get_index() + cgn);
         for (int i = 0; i < cgn; i++) {
             pid.set_sub_id(i);
             chk_ids.push_back(pid);

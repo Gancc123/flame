@@ -17,6 +17,7 @@ void MgrServer::__init() {
 
     builder_.RegisterService(&flame_service_);
     builder_.RegisterService(&internal_service_);
+    builder_.RegisterService(&libflame_service_);
 }
 
 } // namespace flame

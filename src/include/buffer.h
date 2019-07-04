@@ -70,6 +70,20 @@ public:
     virtual int type() const { return 0; }
 
     /**
+     * @brief rkey of Buffer
+     * 
+     * @return uint32_t 
+     */
+    virtual uint32_t rkey() const = 0;
+
+    /**
+     * @brief Get lkey of Buffer
+     * 
+     * @return uint32_t 
+     */
+    virtual uint32_t lkey() const = 0;
+
+    /**
      * @brief 按指定大小调整Buffer空间
      * 默认拒绝重新分配，可以不实现调整功能
      * @param sz 新大小
@@ -141,7 +155,7 @@ public:
     /**
      * @brief 
      * 
-     * @return uint8_t* 
+     * @return void* 
      */
     inline void* addr() const { return ptr_->addr(); }
 
@@ -165,6 +179,20 @@ public:
      * @return int 
      */
     inline int type() const { return ptr_->type(); }
+
+    /**
+     * @brief 
+     * 
+     * @return rkey 
+     */
+    inline uint32_t rkey() const { return ptr_->rkey(); }
+
+    /**
+     * @brief 
+     * 
+     * @return lkey 
+     */
+    inline uint32_t lkey() const { return ptr_->lkey(); }
 
     /**
      * @brief 
@@ -351,6 +379,12 @@ class BufferAllocator {
 public:
     virtual ~BufferAllocator() {}
 
+    /**
+     * @brief 获得内存分配器
+     * 
+     * @return BufferAllocator*
+     */
+    // virtual BufferAllocator* get_buffer_allocator() const = 0;
     /**
      * @brief 所分配的内存类型
      * 

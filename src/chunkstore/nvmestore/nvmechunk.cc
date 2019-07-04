@@ -294,16 +294,16 @@ int NvmeChunk::write_sync(void *buff, uint64_t off, uint64_t len) {
     return NVMECHUNK_NO_OP;
 }
 
-uint64_t NvmeChunk::length_to_unit(uint64_t len) {
-    uint64_t unit_nums = 0;
-    unit_nums = len / (nvmestore->get_unit_size());
-    return unit_nums;
+uint64_t NvmeChunk::length_to_page(uint64_t len) {
+    uint64_t page_nums = 0;
+    page_nums = len / (nvmestore->get_page_size());
+    return page_nums;
 }
 
-uint64_t NvmeChunk::offset_to_unit(uint64_t offset) {
-    uint64_t unit_nums = 0;
-    unit_nums = offset / (nvmestore->get_unit_size());
-    return unit_nums;
+uint64_t NvmeChunk::offset_to_page(uint64_t offset) {
+    uint64_t page_nums = 0;
+    page_nums = offset / (nvmestore->get_page_size());
+    return page_nums;
 }
 
 int NvmeChunk::set_xattr(const std::string& name, const std::string& value) {
@@ -411,8 +411,8 @@ void NvmeChunk::chunk_io_start(void *arg1, void *arg2) {
             nv_channel->curr_io_ops_add(1);
 
             struct chunk_read_arg *crarg = dynamic_cast<chunk_read_arg *>(oparg);
-            io_length = chunk->length_to_unit(crarg->length);
-            io_offset = chunk->offset_to_unit(crarg->offset);
+            io_length = chunk->length_to_page(crarg->length);
+            io_offset = chunk->offset_to_page(crarg->offset);
 
             std::cout << "io_length = " << io_length << std::endl;
             std::cout << "io_offset = " << io_offset << std::endl;
@@ -427,8 +427,8 @@ void NvmeChunk::chunk_io_start(void *arg1, void *arg2) {
             nv_channel->curr_io_ops_add(1);
 
             struct chunk_write_arg *cwarg = dynamic_cast<chunk_write_arg *>(oparg);
-            io_length = chunk->length_to_unit(cwarg->length);
-            io_offset = chunk->offset_to_unit(cwarg->offset);
+            io_length = chunk->length_to_page(cwarg->length);
+            io_offset = chunk->offset_to_page(cwarg->offset);
 
             std::cout << "io_length = " << io_length << std::endl;
             std::cout << "io_offset = " << io_offset << std::endl;

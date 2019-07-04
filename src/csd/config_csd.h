@@ -3,6 +3,7 @@
 
 #define CFG_CSD_CLT_NAME "cluster_name"
 #define CFG_CSD_LOG_DIR "log_dir"
+#define CFG_CSD_RPC_ADDR "rpc_addr"
 #define CFG_CSD_LOG_LEVEL "log_level"
 #define CFG_CSD_ADMIN_ADDR "admin_address"
 #define CFG_CSD_IO_ADDR "io_address"

@@ -155,6 +155,8 @@ int VolumeManager::vol_create(const string& vg_name, const string& vol_name, con
     vol.size = attr.size;
     vol.flags = attr.flags;
     vol.spolicy = attr.spolicy;
+    vol.used = 0;
+    vol.chunks = attr.size / attr.chk_sz;
     r = ms_->get_volume_ms()->create_and_get(vol);//先写库
     if (r != RC_SUCCESS) {
         bct_->log()->lerror("insert volume into database faild vg(%s) volume(%s) ", vg_name.c_str(), vol.name.c_str());
@@ -167,7 +169,7 @@ int VolumeManager::vol_create(const string& vg_name, const string& vol_name, con
     chk_attr_t chka;
     chka.spolicy = attr.spolicy;
     chka.flags = attr.flags;
-    chka.size = sp->chk_size();
+    chka.size = attr.chk_sz;
 
     chunk_id_t chk_id;
     chk_id.set_vol_id(vol.vol_id);
@@ -274,9 +276,25 @@ int VolumeManager::vol_resize(const std::string& vg_name, const std::string& vol
     return RC_FAILD;
 }
 
-int VolumeManager::vol_open(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name) {
-    // @@@ don't support now
-    return RC_FAILD;
+int VolumeManager::vol_open(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name, VolumeMeta &volume_meta) {
+    bct_->log()->ltrace("vg=%s, volume=%s", vg_name.c_str(), vol_name.c_str());
+
+    uint64_t vg_id = get_vg_id__(vg_name);
+    if (vg_id == 0) {
+        bct_->log()->lerror("vg not found");
+        return RC_OBJ_NOT_FOUND;
+    }
+    volume_meta_t vol_meta;
+    int rc = ms_->get_volume_ms()->get(vol_meta, vg_id, vol_name);
+    volume_meta.id = vol_meta.vol_id;
+    volume_meta.name = vol_name;
+    volume_meta.vg_name = vg_name;
+    volume_meta.size = vol_meta.size;
+    volume_meta.ctime = vol_meta.ctime;
+    // volume_meta.prealloc = vol_meta.;
+    volume_meta.chk_sz = vol_meta.chk_sz;
+    volume_meta.spolicy = vol_meta.spolicy;
+    return rc;
 }
 
 int VolumeManager::vol_close(uint64_t gw_id, const std::string& vg_name, const std::string& vol_name) {

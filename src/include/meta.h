@@ -158,7 +158,7 @@ enum ChunkStat {
 };
 
 /**
- * Node Addr 
+ * Node Addr 32bit ip + 16bit port
  */
 struct node_addr_t {
     uint64_t val;

@@ -36,7 +36,7 @@ function(import_spdk spdk_dir)
             vbdev_error
             vbdev_gpt
             vbdev_split
-            vbdev_raid
+            # vbdev_raid
             bdev_aio
             bdev_virtio
             virtio

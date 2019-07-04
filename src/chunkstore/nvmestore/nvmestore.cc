@@ -109,9 +109,6 @@ uint64_t NvmeStore::get_page_size() {
     return page_size;
 }
 
-uint64_t NvmeStore::get_unit_size() {
-    return unit_size;
-}
 
 uint64_t NvmeStore::get_cluster_size() {
     return cluster_size;
@@ -271,7 +268,6 @@ void NvmeStore::bs_init_cb(void *cb_arg, struct spdk_blob_store *bs, int bserrno
 
     nvmestore->blobstore    = bs;
     nvmestore->page_size    = spdk_bs_get_page_size(bs);
-    nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
     nvmestore->cluster_size = spdk_bs_get_cluster_size(bs);
 
     nvmestore->meta_channel = spdk_bs_alloc_io_channel(bs);
@@ -462,7 +458,6 @@ void NvmeStore::bs_load_cb(void *cb_arg, struct spdk_blob_store *bs, int bserrno
 
     nvmestore->blobstore    = bs;
     nvmestore->page_size    = spdk_bs_get_page_size(bs);
-    nvmestore->unit_size    = spdk_bs_get_io_unit_size(bs);
     nvmestore->cluster_size = spdk_bs_get_cluster_size(bs);
     nvmestore->data_cluster_count = spdk_bs_free_cluster_count(bs);
 /*
@@ -688,61 +683,6 @@ void NvmeStore::unmount_start(void *arg1, void *arg2) {
 
     NvmeStore *nvmestore = uarg->nvmestore;
     nvmestore->get_fct()->log()->linfo("current core: %ld", spdk_env_get_current_core());
-    //首先持久化chunk_blob的map信息，之后销毁该结构
-/*
-    if(nvmestore->chunk_blob_map->is_dirty()) {
-        if(nvmestore->chunk_blob_map->store() != 0) {
-            nvmestore->fct_->log()->error("chunk_blob_map failed.");
-            *(uarg->ret) = NVMESTORE_STORE_MAPBLOB_ERR;
-            nvmestore->signal_unmount_completed();
-
-            return ;
-        }
-
-        std::cout << "persist chunk_blob_map completed.." << std::endl;
-
-        if(nvmestore->chunk_blob_map->close_blob() != 0) {
-            nvmestore->fct_->log()->error("chunk_blob_map close failed.");
-            *(uarg->ret) = NVMESTORE_CLOSE_MAPBLOB_ERR;
-            nvmestore->signal_unmount_completed();
-
-            return ;
-        }
-
-        std::cout << "close chunk_blob_map completed.." << std::endl;
-
-        if(nvmestore->chunk_blob_map) {
-            //销毁chunk_blob_map中的信息
-            nvmestore->chunk_blob_map->cleanup();
-            delete nvmestore->chunk_blob_map;
-        }
-
-        std::cout << "delete chunk_blob_map_ptr completed.." << std::endl;
-    }
-
-    //销毁chunk_map结构
-    if(nvmestore->chunk_map) {
-        nvmestore->chunk_map->cleanup();
-        delete nvmestore->chunk_map;
-    }
-
-    std::cout << "cleanup chunk_map completed..." << std::endl;
-
-    //销毁io_channels;
-    if(nvmestore->read_channels) {
-        nvmestore->read_channels->free_channels();
-        delete nvmestore->read_channels;
-    }
-
-    if(nvmestore->write_channels) {
-        nvmestore->write_channels->free_channels();
-        delete nvmestore->write_channels;
-    }
-
-    std::cout << "free io_channels completed.." << std::endl;
-
-
-*/
 
     spdk_bs_unload(nvmestore->blobstore, store_unload_cb, uarg);
 }
@@ -1006,7 +946,6 @@ void NvmeStore::print_store() {
     std::cout << "|page_szie: "     << page_size    << "\n";
     std::cout << "|chunk_pages: "   << chunk_pages  << "\n";
     std::cout << "|total_chunks: "  << total_chunks << "\n";
-    std::cout << "|unit_size: "     << unit_size    << "\n";
     std::cout << "|used_size: "     << used_size    << "\n";
     //std::cout << "|format_time: "   << asctime(localtime(format_time)) << "\n";
     std::cout << "|format_time: "   << format_time  << "\n";

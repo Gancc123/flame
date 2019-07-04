@@ -3,6 +3,10 @@ set(TESTS_LIBCHUNK_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/tests/libchunk)
 # libchunk test
 
 add_executable(server_test 
+    ${chunkstore_objs}
+    ${work_objs}
+    ${msg_objs}
+    ${memory_objs}
     ${libchunk_objs}
     server_test.cc
     )
@@ -22,6 +26,7 @@ set_target_properties(server_test
 
 add_executable(client_test
     ${libchunk_objs}
+    ${memory_objs}
     client_test.cc
     )
 target_link_libraries(client_test common)

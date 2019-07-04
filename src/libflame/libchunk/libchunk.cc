@@ -2,6 +2,9 @@
 
 #include "include/csdc.h"
 #include "log_libchunk.h"
+#include "common/context.h"
+#include "util/spdk_common.h"
+#include "memzone/rdma_mz.h"
 
 
 namespace flame {
@@ -40,18 +43,25 @@ cmd_ma_t MemoryAreaImpl::get() const {
  * @name: CmdClientStubImpl
  * @describtions: CmdClientStubImpl构造函数，通过FlameContext*构造MsgContext*
  * @param   FlameContext*       flame_context 
+ *          msg_module_cb       clear_done_cb       在消息模块销毁后调用的函数
  * @return: \
  */
 
 int CmdClientStubImpl::ring = 0;
-CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context)
+CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_module_cb clear_done_cb)
     :  CmdClientStub(){
     msg_context_ = new msg::MsgContext(flame_context); //* set msg_context_
+    msg_context_->clear_done_cb = clear_done_cb;
+    msg_context_->clear_done_arg1 = msg_context_;
     client_msger_ = new Msger(msg_context_, this, false);
     if(msg_context_->load_config()){
         assert(false);
     }
-    msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
+    int r;
+    r = msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
+    assert(!r);
+    r = msg_context_->config->set_msg_worker_type("SPDK");
+    assert(!r);
     msg_context_->init(client_msger_);//* set msg_client_recv_func
 }
 
@@ -87,9 +97,9 @@ int CmdClientStubImpl::_set_session(std::string ip_addr, int port){
  *          int             port        端口号
  * @return: std::shared_ptr<CmdClientStubImpl>
  */
-std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(std::string ip_addr, int port){
+std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(std::string ip_addr, int port, msg::msg_module_cb clear_done_cb){
     FlameContext* flame_context = FlameContext::get_context();
-    CmdClientStubImpl* cmd_client_stub = new CmdClientStubImpl(flame_context);
+    CmdClientStubImpl* cmd_client_stub = new CmdClientStubImpl(flame_context, clear_done_cb);
     int rc;
     rc = cmd_client_stub->_set_session(ip_addr, port);
     if(rc) return nullptr;
@@ -143,8 +153,13 @@ CmdServerStubImpl::CmdServerStubImpl(FlameContext* flame_context){
     msg_context_ = new msg::MsgContext(flame_context); //* set msg_context_
     server_msger_ = new Msger(msg_context_, nullptr, true);
     assert(!msg_context_->load_config());
-    msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
+    int r;
+    r = msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
+    assert(!r);
+    r = msg_context_->config->set_msg_worker_type("SPDK");
+    assert(!r);
     msg_context_->init(server_msger_);//* set msg_server_recv_func
+    
 }
 
 } // namespace flame

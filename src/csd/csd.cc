@@ -16,7 +16,14 @@
 
 #include "csd/log_csd.h"
 
+#include "libflame/libchunk/libchunk.h"
+#include "libflame/libchunk/log_libchunk.h"
+#include "include/cmd.h"
+#include "include/csdc.h"
+#include "libflame/libchunk/chunk_cmd_service.h"
+
 #include "include/spdk_common.h"
+#include "memzone/rdma_mz.h"
 
 #include <memory>
 #include <string>
@@ -43,6 +50,7 @@ public:
     Argument<string>    chunkstore  {this, CFG_CSD_CHUNKSTORE, "ChunkStore url", ""};
     Argument<uint64_t>  heart_beat  {this, CFG_CSD_HEART_BEAT_CYCLE, "heart beat cycle, unit: ms", 3000};
     Argument<string>    log_dir     {this, CFG_CSD_LOG_DIR, "log dir", "/var/log/flame"};
+    Argument<string>    rpc_addr     {this, CFG_CSD_RPC_ADDR, "rpc addr", "/var/temp/spdk_csd.sock"};
     Argument<string>    log_level   {this, CFG_CSD_LOG_LEVEL, 
         "log level. {PRINT, TRACE, DEBUG, INFO, WARN, ERROR, WRONG, CRITICAL, DEAD}", "INFO"};
 
@@ -61,6 +69,7 @@ struct app_opts {
     char reactor_mask[LINE_LENGTH];
     char nvme_conf[LINE_LENGTH];
     char print_level[LINE_LENGTH];
+    char rpc_addr[LINE_LENGTH];
 public:
     app_opts() {
 
@@ -71,12 +80,14 @@ public:
         strcpy(nvme_conf, csd_cli->nvme_conf.get().c_str());
         strcpy(reactor_mask, csd_cli->reactor_mask.get().c_str());
         strcpy(print_level, csd_cli->log_level.get().c_str());
+        strcpy(rpc_addr, csd_cli->rpc_addr.get().c_str());
     }
 
     void convert_to_spdk_app_opts(struct spdk_app_opts *opts) {
         opts->name = csd_name;
         opts->config_file = nvme_conf;
         opts->reactor_mask = reactor_mask;
+        opts->rpc_addr = rpc_addr;
 
         if(strcmp(print_level, "TRACE") == 0 || strcmp(print_level, "DEBUG")) {
             opts->print_level = SPDK_LOG_DEBUG;
@@ -108,7 +119,7 @@ public:
     friend class CsdAdminThread;
 
 private:
-    unique_ptr<CsdContext> cct_;
+    shared_ptr<CsdContext> cct_;
     unique_ptr<CsdAdminServer> server_;
     unique_ptr<InternalClientFoctory> internal_client_foctory_;
 
@@ -127,6 +138,7 @@ private:
     string      cfg_chunkstore_url_;
     uint64_t    cfg_heart_beat_cycle_ms_;
     string      cfg_log_dir_;
+    string      cfg_rpc_addr_;
     string      cfg_log_level_;
 
     int read_config(CsdCli* csd_cli);
@@ -347,6 +359,19 @@ int CSD::read_config(CsdCli* csd_cli) {
     }
 
     /**
+     * cfg_rpc_addr_
+     */
+    string rpc_addr;
+    if (csd_cli->rpc_addr.done() && !csd_cli->rpc_addr.get().empty()) {
+        cfg_rpc_addr_ = csd_cli->rpc_addr;
+    } else if (config->has_key(CFG_CSD_RPC_ADDR)) {
+        cfg_rpc_addr_ = config->get(CFG_CSD_RPC_ADDR, "");
+    } else {
+        cct_->log()->lerror("config[ " CFG_CSD_RPC_ADDR " ] not found");
+        return 9;
+    }
+
+    /**
      * cfg_log_level_
      */
     string log_level;
@@ -425,6 +450,15 @@ bool CSD::init_chunkstore(bool force_format) {
     }
 
     cct_->cs(cs);
+
+    /*libchunk部分*/
+    FlameContext* flame_context = FlameContext::get_context();
+    CmdServerStubImpl* cmd_sever_stub = new CmdServerStubImpl(flame_context);
+    CmdServiceMapper *cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper();
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_READ, new ReadCmdService(cct_.get()));
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_.get()));
+
+    flame_context->log()->ltrace("CmdSeverStub created!");
 
     return true;
 }
