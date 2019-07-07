@@ -69,7 +69,6 @@ FlameStub* FlameStub::connect(std::string& path){
             ip = ip | atoi(result[i].str().c_str());
         }
     }
-
     FlameContext* flame_context = FlameContext::get_context();
     FlameStub* flame_stub = new FlameStub(flame_context, ip, grpc::CreateChannel(
         path, grpc::InsecureChannelCredentials())
@@ -308,7 +307,7 @@ int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name,
             addr.chunk_id = reply.chunks(i).chunk_id();
             addr.ip = reply.chunks(i).ip();
             addr.port = reply.chunks(i).port();
-            volume_->volume_meta_.chunks_map[i] = addr;
+            volume_->volume_meta_.chunks_map[i] = addr; //如index = 0 => (chunk_id, ip, port)
         }
         return reply.retcode();
     } else {

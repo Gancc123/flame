@@ -21,7 +21,7 @@ git submodule update --init #更新git子模块(googletest)
   * 利用`ninja -C build clean`可以清空所有生成文件  
   * 如果修改了一些编译配置项，可以删除`build`文件夹，然后重新`./do_cmake.sh`  
 * With SPDK，  
-  1. 编译SPDK，SPDK版本为v18.10
+  1. 编译SPDK，SPDK版本为v18.07
   2. 设置SPDK路径`export SPDK_ROOT=path/to/spdk_dir`  
   3. `./do_cmake -D WITH_SPDK=ON`  
   或 将`CMakeLists.txt`中的`option(WITH_SPDK, ..., OFF)`修改为`ON`。  

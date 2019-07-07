@@ -88,6 +88,7 @@ public:
         opts->config_file = nvme_conf;
         opts->reactor_mask = reactor_mask;
         opts->rpc_addr = rpc_addr;
+        opts->mem_size = 2048;
 
         if(strcmp(print_level, "TRACE") == 0 || strcmp(print_level, "DEBUG")) {
             opts->print_level = SPDK_LOG_DEBUG;

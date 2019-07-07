@@ -17,7 +17,7 @@ RdmaBuffer::RdmaBuffer(void *ptr, BuddyAllocator *a)
 
 void *RdmaMemSrc::alloc(size_t s) {
     auto fct = allocator_ctx->get_fct();
-    void *m = spdk_malloc(s, 4096, NULL,
+    void *m = spdk_malloc(s, 1 << 21, NULL,
                             SPDK_ENV_SOCKET_ID_ANY,
                             SPDK_MALLOC_DMA | SPDK_MALLOC_SHARE);
 

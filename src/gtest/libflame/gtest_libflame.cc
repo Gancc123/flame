@@ -47,6 +47,25 @@ TEST_F(TestLibFlame, TestVolume)
     ASSERT_EQ(0,    chunk_positions[1].offset);
     ASSERT_EQ(1024, chunk_positions[1].length);
     chunk_positions.clear();
+
+     VolumeMeta meta2;
+    meta2.id = 1;
+    meta2.chk_sz = 1073741824;
+    meta2.chunks_map[0] = {123, 192, 7777};
+    meta2.chunks_map[1] = {124, 193, 7777};
+    meta2.chunks_map[2] = {125, 194, 7777};
+    meta2.chunks_map[3] = {126, 194, 7777};
+    Volume* volume2 = new Volume(meta2);
+    uint64_t GigaByte = 1 << 30;
+    volume2->vol_to_chunks(GigaByte - 8192, 8192 * 2, chunk_positions);
+    ASSERT_EQ(123,              chunk_positions[0].chunk_id);
+    ASSERT_EQ(GigaByte - 8192,  chunk_positions[0].offset);
+    ASSERT_EQ(8192,             chunk_positions[0].length);
+    ASSERT_EQ(124,              chunk_positions[1].chunk_id);
+    ASSERT_EQ(0,                chunk_positions[1].offset);
+    ASSERT_EQ(8192,             chunk_positions[1].length);
+    chunk_positions.clear();
+
     // flame_stub_->volume_.reset(new Volume(meta));
     // flame_stub_->volume_->volume_meta_.id = 1;
     // std::cout << &flame_stub_->volume_->volume_meta_ << std::endl;

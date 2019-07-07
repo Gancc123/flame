@@ -45,9 +45,9 @@ public:
         internal_ = 1;
         FlameContext* flame_context = FlameContext::get_context();
         uint64_t gw_id = 0;
-        FlameStub* flame_stub_ = new FlameStub(flame_context, 0, grpc::CreateChannel(
-                "127.0.0.1:6667", grpc::InsecureChannelCredentials())
-        );
+        // FlameStub* flame_stub_ = new FlameStub(flame_context, 0, grpc::CreateChannel(
+        //         "127.0.0.1:6667", grpc::InsecureChannelCredentials())
+        // );
     }
     ~TestLibFlame(){
     //     //volume_manager_ = new VolumeManager();

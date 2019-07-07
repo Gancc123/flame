@@ -9,6 +9,7 @@
 #include "common/log.h"
 #include "util/spdk_common.h"
 #include "memzone/rdma_mz.h"
+#include "util/ip_op.h"
 
 using namespace flame;
 using namespace flame::memory;
@@ -53,7 +54,11 @@ static void test_libchunk(void *arg1, void *arg2){
     // assert(mem_cfg);
     std::cout << "load config completed.." << std::endl;
 
-    std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub("127.0.0.1", 7778, msg_stop);
+    std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub(msg_stop);
+    cmd_client_stub->set_session("192.168.3.112", 9999);
+    std::string ip_string = "192.168.3.112";
+    uint64_t peer_ip = string_to_ip(ip_string);
+    uint64_t peer_io_addr = peer_ip << 16 | (uint32_t)9999;
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
 
     /* 无inline的写入chunk的操作 */
@@ -63,16 +68,16 @@ static void test_libchunk(void *arg1, void *arg2){
     memcpy(buf_write.addr(), a, 8);
     MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write.addr(), (uint32_t)buf_write.size(), buf_write.rkey(), 1);
     cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
-    ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 123, 0, 4096, *memory_write, 0); 
-    cmd_client_stub->submit(*rdma_work_request_write, &cb_func2, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
+    ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 1048592, 0, 4096, *memory_write, 0); 
+    cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, &cb_func2, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
 
     /* 无inline的读取chunk的操作 */
     RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
     Buffer buf_read = allocator->allocate(1 << 22); //4MB
     MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read.addr(), (uint32_t)buf_read.size(), buf_read.rkey(), 1);
     cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
-    ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 123, 0, 8192, *memory_read); 
-    cmd_client_stub->submit(*rdma_work_request_read, &cb_func, buf_read.addr());
+    ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 1048592, 0, 8192, *memory_read); 
+    cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, &cb_func, buf_read.addr());
 
     /* 带inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write_inline = cmd_client_stub->get_request();
@@ -82,14 +87,14 @@ static void test_libchunk(void *arg1, void *arg2){
     memcpy(buf_write_inline.addr(), b, 8);
     MemoryArea* memory_write_inline = new MemoryAreaImpl((uint64_t)buf_write_inline.addr(),\
                      (uint32_t)buf_write_inline.size(), buf_write_inline.rkey(), 1);
-    ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 123, 0, 4096, *memory_write_inline, 1); 
-    cmd_client_stub->submit(*rdma_work_request_write_inline, &cb_func2, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+    ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 1048592, 0, 4096, *memory_write_inline, 1); 
+    cmd_client_stub->submit(*rdma_work_request_write_inline, peer_io_addr, &cb_func2, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
 
     /* 带inline的读取chunk的操作 */
     RdmaWorkRequest* rdma_work_request_read_inline = cmd_client_stub->get_request();
     cmd_t* cmd_read_inline = (cmd_t *)rdma_work_request_read_inline->command;
-    ChunkReadCmd* read_cmd_inline = new ChunkReadCmd(cmd_read_inline, 123, 0, 4096); 
-    cmd_client_stub->submit(*rdma_work_request_read_inline, &cb_func, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+    ChunkReadCmd* read_cmd_inline = new ChunkReadCmd(cmd_read_inline, 1048592, 0, 4096); 
+    cmd_client_stub->submit(*rdma_work_request_read_inline, peer_io_addr, &cb_func, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
 
 
     std::getchar();
@@ -105,9 +110,8 @@ int main(int argc, char *argv[])
     struct spdk_app_opts opts = {};
     spdk_app_opts_init(&opts);
     opts.name = "libchunk_test";
-    opts.reactor_mask = "0x3c0";
+    opts.reactor_mask = "0xf";
     opts.rpc_addr = "/var/tmp/spdk_libchunk_c.sock";
-    opts.master_core = 6;
 
     rc = spdk_app_start(&opts, test_libchunk, nullptr, nullptr);
     if(rc) {

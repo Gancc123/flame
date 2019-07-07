@@ -497,7 +497,7 @@ public:
     // static std::shared_ptr<CmdClientStub> create_stub(std::string ip_addr, int port) = 0;
     virtual std::map<uint32_t, MsgCallBack>& get_cb_map() = 0;
 
-    virtual int submit(RdmaWorkRequest& req, cmd_cb_fn_t cb_fn, void* cb_arg) = 0;
+    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg) = 0;
 protected:
     CmdClientStub() {}
     ~CmdClientStub() {}
