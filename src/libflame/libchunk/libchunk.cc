@@ -5,6 +5,7 @@
 #include "common/context.h"
 #include "util/spdk_common.h"
 #include "memzone/rdma_mz.h"
+#include "util/ip_op.h"
 
 
 namespace flame {
@@ -66,27 +67,30 @@ CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_modul
 }
 
 /**
- * @name: _set_session
+ * @name: set_session
  * @describtions: CmdClientStubImpl设置session_
  * @param   std::string     ip_addr     字符串形式的IP地址       
  *          int             port        端口号 
  * @return: 0表示成功
  */
-int CmdClientStubImpl::_set_session(std::string ip_addr, int port){
+int CmdClientStubImpl::set_session(std::string ip_addr, int port){
     /**此处的NodeAddr仅作为msger_id_t唯一标识的参数，并不是实际通信地址的填充**/
     msg::NodeAddr* addr = new msg::NodeAddr(msg_context_);
     addr->ip_from_string(ip_addr);
     addr->set_port(port);
     msg::msger_id_t msger_id = msg::msger_id_from_msg_node_addr(addr);
     addr->put();
-    session_ = msg_context_->manager->get_session(msger_id);
+    msg::Session* single_session = msg_context_->manager->get_session(msger_id);
     /*此处填充通信地址*/
     msg::NodeAddr* rdma_addr = new msg::NodeAddr(msg_context_);
     rdma_addr->set_ttype(NODE_ADDR_TTYPE_RDMA);
     rdma_addr->ip_from_string(ip_addr);
     rdma_addr->set_port(port);
-    session_->set_listen_addr(rdma_addr, msg::msg_ttype_t::RDMA);
+    single_session->set_listen_addr(rdma_addr, msg::msg_ttype_t::RDMA);
     rdma_addr->put();
+    uint64_t ip = string_to_ip(ip_addr);
+    int64_t io_addr = ip << 16 | (uint32_t)port;
+    session_[io_addr] = single_session; 
     return 0;
 }
 
@@ -97,12 +101,9 @@ int CmdClientStubImpl::_set_session(std::string ip_addr, int port){
  *          int             port        端口号
  * @return: std::shared_ptr<CmdClientStubImpl>
  */
-std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(std::string ip_addr, int port, msg::msg_module_cb clear_done_cb){
+std::shared_ptr<CmdClientStubImpl> CmdClientStubImpl::create_stub(msg::msg_module_cb clear_done_cb){
     FlameContext* flame_context = FlameContext::get_context();
     CmdClientStubImpl* cmd_client_stub = new CmdClientStubImpl(flame_context, clear_done_cb);
-    int rc;
-    rc = cmd_client_stub->_set_session(ip_addr, port);
-    if(rc) return nullptr;
     return std::shared_ptr<CmdClientStubImpl>(cmd_client_stub);
 } 
 
@@ -126,9 +127,9 @@ RdmaWorkRequest* CmdClientStubImpl::get_request(){
  *          void*               cb_arg      回调函数的参数
  * @return: 
  */
-int CmdClientStubImpl::submit(RdmaWorkRequest& req, cmd_cb_fn_t cb_fn, void* cb_arg){
+int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg){
     ((cmd_t *)req.command)->hdr.cqn = ((ring++)%256);
-    msg::Connection* conn = session_->get_conn(msg::msg_ttype_t::RDMA);
+    msg::Connection* conn = session_[io_addr]->get_conn(msg::msg_ttype_t::RDMA);
     msg::RdmaConnection* rdma_conn = msg::RdmaStack::rdma_conn_cast(conn);
     if(((cmd_t *)req.command)->hdr.cn.seq == CMD_CHK_IO_WRITE){
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd((cmd_t *)req.command);

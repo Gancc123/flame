@@ -20,6 +20,8 @@
 #include "common/context.h"
 #include "include/meta.h"
 #include "service/libflame_service.h"
+#include "include/cmd.h"
+#include "libflame/libchunk/libchunk.h"
 
 #include <grpcpp/grpcpp.h>
 #include <cstdint>
@@ -40,24 +42,6 @@ struct FLAME_API Config {
     std::string mgr_addr;
 
 }; // class Config
-
-
-
-// struct FLAME_API AsyncCallback {
-//     libflame_callback fn { nullptr };
-//     void* arg1 { nullptr };
-//     int completion {0};
-//     int total_completion {0};
-
-//     inline void call(const Response& res) {
-//         if (fn != nullptr) fn(res, arg1, arg2);
-//     }
-//     inline void sub_call(const Response& res){ //**这里没有做超时的处理
-//         completion++;
-//         if(completion == total_completion)
-//             call(res);
-//     }
-// };
 
 // #ifdef __cpluscplus
 // extern "C" {
@@ -129,10 +113,10 @@ public:
     }
 
     // async io call
-    int read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    int write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    int reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    int flush(libflame_callback cb, void* arg);
+    int read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int reset(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int flush(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, libflame_callback cb, void* arg);
 
 private:
     friend class FlameStub;
@@ -190,11 +174,13 @@ public:
     FlameStub(FlameContext* flame_context, uint64_t gw_id, std::shared_ptr<grpc::Channel> channel)
     : flame_context_(flame_context), gw_id_(gw_id), stub_(LibFlameService::NewStub(channel)) {
         volume_.reset(new Volume());
+        cmd_client_stub_ = CmdClientStubImpl::create_stub(nullptr);
     }
 
     ~FlameStub() {}
 
     std::unique_ptr<Volume> volume_;
+    std::shared_ptr<CmdClientStubImpl> cmd_client_stub_;
 private:
     FlameContext* flame_context_;
     uint64_t gw_id_;

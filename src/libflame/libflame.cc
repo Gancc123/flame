@@ -23,21 +23,48 @@ using grpc::Status;
 #endif
 namespace flame {
 
-int sub[CONCURRENCY_MAX];
-int sub_index;
+int sub[CONCURRENCY_MAX] = {};
+int sub_index = 0;
+
 
 struct cb_arg{
-    int& sub;
+    int* sub;
     int total_completion;
     libflame_callback cb;
     void* arg;
 };
 
+
 void sub_cb(const Response& res, void* arg1){
-    cb_arg arg= *(struct cb_arg *)arg1;
-    arg.sub++;
-    if(arg.sub == arg.total_completion)
-        arg.cb(res, arg.arg);
+    struct cb_arg* arg= (struct cb_arg *)arg1;
+    (*(arg->sub))++;
+    if(*(arg->sub) == arg->total_completion){
+        *(arg->sub) = 0;
+        arg->cb(res, arg->arg);
+    }
+
+}
+//Libflame write
+int FlameStub::read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+    if(len % 4096 != 0) return -1;
+    volume_->read(cmd_client_stub_, buff, offset, len, cb, arg);
+    return 0;
+}
+//Libflame write
+int FlameStub::write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+    if(len % 4096 != 0) return -1;
+    volume_->write(cmd_client_stub_, buff, offset, len, cb, arg);
+    return 0;
+}
+//Libflame reset
+int FlameStub::reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+    volume_->reset(cmd_client_stub_, offset, len, cb, arg);
+    return 0;
+}
+//Libflame flush
+int FlameStub::flush(libflame_callback cb, void* arg){
+    volume_->flush(cmd_client_stub_, cb, arg);
+    return 0;
 }
 
 //Class Volume
@@ -69,57 +96,67 @@ int Volume::vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOff
     return 0;
 }
 // async io call
-int Volume::read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
     vol_to_chunks(offset, len, chunk_positions);
-    
-    sub_index = (sub_index + 1) % CONCURRENCY_MAX;
-    cb_arg sub_arg = {sub[sub_index],  chunk_positions.size(), cb, arg}; 
-
     uint64_t addr = (uint64_t)buff.addr();
-    uint32_t size = 0;
     uint32_t rkey = buff.rkey();
-    for(auto i : chunk_positions){  //暂时都采用无inline的读
-        std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub(ip32_to_string(volume_meta_.chunks_map[i.chunk_id].ip), volume_meta_.chunks_map[i.chunk_id].port, nullptr); //这里应该设置一个全局的连接池，现在没设计
+    sub_index = sub_index++ % CONCURRENCY_MAX;
+    cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg}; 
+
+    for(int i = 0; i < chunk_positions.size(); i++){  //暂时都采用无inline的读
+        uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
+        uint64_t peer_io_addr = peer_io_op << 16 | volume_meta_.chunks_map[i].port;
+        uint64_t chunk_id = chunk_positions[i].chunk_id;
+        uint64_t offset_inner = chunk_positions[i].offset;
+        uint64_t length_inner = chunk_positions[i].length;
+        if(length_inner < 4096){
+            std::cout << "not a block request" << std::endl;
+            return -1;
+        } 
         RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
-        size = i.length;
-        MemoryArea* memory_read = new MemoryAreaImpl(addr, size, rkey, 1);
+        MemoryArea* memory_read = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
-        ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, i.chunk_id, i.offset, size, *memory_read); 
-        cmd_client_stub->submit(*rdma_work_request_read, sub_cb, (void*)&sub_arg);
-        addr += size;
+        ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, chunk_id, offset_inner, length_inner, *memory_read); 
+        cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, (void*)sub_arg);
+        addr += length_inner;
     }
     return 0;
 }
-int Volume::write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
     vol_to_chunks(offset, len, chunk_positions);
     uint64_t addr = (uint64_t)buff.addr();
-    uint32_t size = 0;
     uint32_t rkey = buff.rkey();
+    sub_index = sub_index++ % CONCURRENCY_MAX;
+    cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg};
 
-    sub_index = (sub_index + 1) % CONCURRENCY_MAX;
-    cb_arg sub_arg = {sub[sub_index],  chunk_positions.size(), cb, arg};
-
-    for(auto i : chunk_positions){  //暂时全部都采用无inline的写
-        std::shared_ptr<CmdClientStubImpl> cmd_client_stub = CmdClientStubImpl::create_stub(ip32_to_string(volume_meta_.chunks_map[i.chunk_id].ip), volume_meta_.chunks_map[i.chunk_id].port, nullptr); //这里应该设置一个全局的连接池，现在没设计
+    for(int i = 0; i < chunk_positions.size(); i++){  //暂时全部都采用无inline的写
+        uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
+        uint64_t peer_io_addr = peer_io_op << 16 | (uint32_t)volume_meta_.chunks_map[i].port;
+        uint64_t chunk_id = chunk_positions[i].chunk_id;
+        uint64_t offset_inner = chunk_positions[i].offset;
+        uint64_t length_inner = chunk_positions[i].length;
+        if(length_inner < 4096){
+            std::cout << "not a block request" << std::endl;
+            return -1;
+        } 
         RdmaWorkRequest* rdma_work_request_write = cmd_client_stub->get_request();
-        size = i.length;
-        MemoryArea* memory_write = new MemoryAreaImpl(addr, size, rkey, 1);
-        cmd_t* cmd_read = (cmd_t *)rdma_work_request_write->command;
-        ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, i.chunk_id, i.offset, size, *memory_write); 
-        cmd_client_stub->submit(*rdma_work_request_write, sub_cb, (void*)&sub_arg);
-        addr += size;
+        MemoryArea* memory_write = new MemoryAreaImpl(addr, length_inner, rkey, 1);
+        cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
+        ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, chunk_id, offset_inner, length_inner, *memory_write, 1); 
+        cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, sub_cb, (void*)sub_arg);
+        addr += length_inner;
     }
     return 0;
 }
-int Volume::reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg){  
-
+int Volume::reset(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){  
+    return 0;
 }
-int Volume::flush(libflame_callback cb, void* arg){
-
+int Volume::flush(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, libflame_callback cb, void* arg){
+    return 0;
 }
 
 

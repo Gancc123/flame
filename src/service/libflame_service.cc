@@ -5,6 +5,7 @@
 #include "mgr/csdm/csd_mgmt.h"
 #include "mgr/chkm/chk_mgmt.h"
 #include "mgr/volm/vol_mgmt.h"
+#include "common/convert.h"
 
 #include <string>
 #include <list>
@@ -230,7 +231,7 @@ const VolOpenRequest* request, VolOpenReply* response)
         Chunk* item = response->add_chunks();
         item->set_chunk_id((*elem).chk_id);
         uint64_t csd_id = chunk_csd_map[(*elem).chk_id];
-        item->set_ip(csd_addr_map[csd_id].io_addr & 0xffffffff0000);//存储形式是32bit ip + 16bit port
+        item->set_ip((csd_addr_map[csd_id].io_addr & 0xffffffff0000) >> 16);//存储形式是32bit ip + 16bit port
         item->set_port(csd_addr_map[csd_id].io_addr & 0xffff);
     }
     return Status::OK;

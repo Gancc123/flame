@@ -34,7 +34,7 @@ private:
 
 class CmdClientStubImpl : public CmdClientStub{
 public:
-    static std::shared_ptr<CmdClientStubImpl> create_stub(std::string ip_addr, int port, msg::msg_module_cb clear_done_cb);
+    static std::shared_ptr<CmdClientStubImpl> create_stub(msg::msg_module_cb clear_done_cb);
     
     RdmaWorkRequest* get_request();
 
@@ -42,22 +42,20 @@ public:
 
     inline virtual std::map<uint32_t, MsgCallBack>& get_cb_map() override {return msg_cb_map_;}
 
-    virtual int submit(RdmaWorkRequest& req, cmd_cb_fn_t cb_fn, void* cb_arg) override;
+    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg) override;
+
+    int set_session(std::string ip_addr, int port);
 
     CmdClientStubImpl(FlameContext* flame_context, msg::msg_module_cb clear_done_cb);
 
     ~CmdClientStubImpl() {
-        // client_msger_->clear_rw_buffers();
         msg_context_->fin();
-    }
-
+    } 
 private:
-    int _set_session(std::string ip_addr, int port);
 
     msg::MsgContext* msg_context_;
     Msger* client_msger_;
-    msg::Session* session_;
-
+    std::map<uint64_t , msg::Session*> session_;
 }; // class CmdClientStubImpl
 
 

@@ -9,6 +9,7 @@ add_executable(libflame_test
     ${libflame_objs}
     ${proto_objs}
     gtest_libflame.cc
+    ../../service/libflame_client.cc
     )
 
 target_link_libraries(libflame_test 
