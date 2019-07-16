@@ -7,7 +7,9 @@ drop_sql="drop table chunk, chunk_health, csd, csd_health, gateway, volume, volu
 
 a=`ps aux | grep csd | awk '{print $2}' | sed -n '1p'`
 kill -9 $a
+sleep 1s
 kill -9 $a
+sleep 1s
 a=`ps aux | grep mgr | awk '{print $2}' | sed -n '1p'`
 kill -9 $a
 
