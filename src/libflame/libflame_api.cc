@@ -121,9 +121,10 @@ extern "C" int flame_stub_open_volume(const char* volume_group, const char* volu
 }
 
 /* Buffer_API*/
-extern "C" int get_buffer_addr(BufferInfo_t* const buffer_info, void** buf){
+extern "C" int allocate_buffer(BufferInfo_t* const buffer_info, void** buf){
+    if(buffer_info->size <= 0) return -1;
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
-    Buffer* buffer = allocator->allocate_ptr(1 << 22); //4MB
+    Buffer* buffer = allocator->allocate_ptr(buffer_info->size); //4MB
     buffer_info->addr = (uint64_t)buffer->addr();
     buffer_info->size = buffer->size();
     buffer_info->type = buffer->type();
@@ -132,9 +133,7 @@ extern "C" int get_buffer_addr(BufferInfo_t* const buffer_info, void** buf){
 }
 
 /*IO_API */
-typedef void (*Callback)(void* arg1, void* arg2);
-
-extern "C" int flame_write(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg){
+extern "C" int flame_write(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
     FlameStub* flame_stub;
     std::string ip = "192.168.3.112:6677";
@@ -145,11 +144,11 @@ extern "C" int flame_write(void* buffer, const uint64_t offset, const uint64_t l
         return -1;
     }
     //TODO  需要合适得加入回调
-    flame_stub->write(*buf, offset, len, nullptr, nullptr);
+    flame_stub->write(*buf, offset, len, cb, cb_arg);
     return 0;
 }
 
-extern "C" int flame_read(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg){
+extern "C" int flame_read(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
     FlameStub* flame_stub;
     std::string ip = "192.168.3.112:6677";
@@ -160,7 +159,7 @@ extern "C" int flame_read(void* buffer, const uint64_t offset, const uint64_t le
         return -1;
     }
     //TODO  需要合适得加入回调
-    flame_stub->read(*buf, offset, len, nullptr, nullptr);
+    flame_stub->read(*buf, offset, len, cb, cb_arg);
     return 0;
 }
 

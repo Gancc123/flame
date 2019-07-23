@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-07-15 09:13:38
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-23 15:43:44
+ * @LastEditTime: 2019-07-23 17:12:37
  */
 
 
@@ -80,14 +80,14 @@ typedef struct{
     int type;
 }BufferInfo_t;
 
-FLAME_API int get_buffer_addr(BufferInfo_t* const buffer_info, void** buf);
+FLAME_API int allocate_buffer(BufferInfo_t* const buffer_info, void** buf);
 
 /*IO_API */
-typedef void (*Callback)(void* arg1, void* arg2);
+typedef void (*libflame_callback)(void* arg);
 
-FLAME_API int flame_write(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg);
+FLAME_API int flame_write(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
 
-FLAME_API int flame_read(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg);
+FLAME_API int flame_read(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
 
 #ifdef __cplusplus
 }

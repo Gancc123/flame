@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-23 16:02:28
+ * @LastEditTime: 2019-07-23 17:09:08
  *
  * @copyright Copyright (c) 2019
  * 
@@ -30,20 +30,13 @@
 #include <vector>
 #include <iostream>
 
-#if __GNUC__ >= 4
-    #define FLAME_API __attribute__((visibility ("default")))
-#else
-    #define FLAME_API
-#endif
-
 namespace flame {
 
-typedef void (*libflame_callback)(const Response& res, void* arg1);
+typedef void (*libflame_callback)(void* arg1);
 
 struct  Config {
     std::string mgr_addr;
-
-}; // class Config
+};
 
 
 //对单一chunk访问的结构
@@ -157,14 +150,10 @@ public:
     int vol_close(const std::string& vg_name, const std::string& vol_name);
     
     /**一个FlameStub结构对应一个Volume，注意：下列函数均为获得了Volume句柄后进行的操作**/
-    // async io call
-    //Volume read
+    // Volume async io call
     int read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume write
     int write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume reset
     int reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume flush
     int flush(libflame_callback cb, void* arg);
 
     FlameStub(FlameContext* flame_context, uint64_t gw_id, std::shared_ptr<grpc::Channel> channel)

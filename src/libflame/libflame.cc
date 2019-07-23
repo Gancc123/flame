@@ -25,8 +25,6 @@ namespace flame {
 
 int sub[CONCURRENCY_MAX] = {};
 int sub_index = 0;
-
-
 struct cb_arg{
     int* sub;
     int total_completion;
@@ -34,16 +32,14 @@ struct cb_arg{
     void* arg;
 };
 
-
 void sub_cb(const Response& res, void* arg1){
     struct cb_arg* arg= (struct cb_arg *)arg1;
     (*(arg->sub))++;
     if(*(arg->sub) == arg->total_completion){
         *(arg->sub) = 0;
         if(arg->cb != nullptr)
-            arg->cb(res, arg->arg);
+            arg->cb(arg->arg);
     }
-
 }
 //Libflame write
 int FlameStub::read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){

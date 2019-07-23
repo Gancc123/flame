@@ -3,12 +3,20 @@
 #include "include/libflame_api.h"
 #include "util/spdk_common.h"
 
-// #include "libflame/libchunk/libchunk.h"
-// #include "include/csdc.h"
-// #include "libflame/libchunk/log_libchunk.h"
-// #include "common/context.h"
-// #include "common/log.h"
+void cb_func(void* arg){
+    char* mm = (char*)arg;
+    for(int i = 0; i < 8192 * 2; i++){
+        if(mm[i] == 0) printf(" ");
+        else putchar(mm[i]);
+    }
+    printf("read completed\n");
+    return ;
+}
 
+void cb_func2(void* arg){
+    printf("write completed\n");
+    return ;
+}
 
 #define CFG_PATH "flame_client.cfg"
 
@@ -26,28 +34,25 @@ static void test_gateway(void *arg1, void *arg2){
     printf("cluster_name = %s\n", cluster_name);
     printf("node_name = %s\n", node_name);
 
-    // flame_stub_connect_mgr("192.168.3.112:6677");
+    flame_stub_connect_mgr("192.168.3.112:6677");
     VolumeMeta_t meta;
     int rc;
     rc = flame_stub_open_volume("vg1", "vol1", &meta);
     BufferInfo_t write_buf_info, read_buf_info;
+    write_buf_info.size = 1 << 22;
+    read_buf_info.size  = 1 << 22;
     void* write_buffer = NULL, *read_buffer = NULL;
-    rc = get_buffer_addr(&write_buf_info, &write_buffer);
-    rc = get_buffer_addr(&read_buf_info, &read_buffer);
+    rc = allocate_buffer(&write_buf_info, &write_buffer);
+    rc = allocate_buffer(&read_buf_info, &read_buffer);
     uint64_t GigaByte = 1 << 30;
     char *m = (char *)write_buf_info.addr;
     for(int i = 0; i < 8192 * 2; i++)
         *(m + i) = 'a' + i % 26;
-    rc = flame_write(write_buffer, GigaByte - 8192, 8192 * 2, NULL, NULL);
+    rc = flame_write(write_buffer, GigaByte - 8192, 8192 * 2, cb_func2, NULL);
     getchar();
-    rc = flame_read(read_buffer, GigaByte - 8192, 8192 * 2, NULL, NULL);
-    getchar();
-    m = (char *)read_buf_info.addr;
-    for(int i = 0; i < 8192 * 2; i++){
-        putchar(m[i]);
-    }
-        
-    printf("lwg\n");
+    rc = flame_read(read_buffer, GigaByte - 8192, 8192 * 2, cb_func, (void*)read_buf_info.addr);
+    getchar();    
+    printf("\nlwg\n");
     spdk_app_stop(0);
 }
 
