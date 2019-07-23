@@ -40,30 +40,31 @@ void sub_cb(const Response& res, void* arg1){
     (*(arg->sub))++;
     if(*(arg->sub) == arg->total_completion){
         *(arg->sub) = 0;
-        arg->cb(res, arg->arg);
+        if(arg->cb != nullptr)
+            arg->cb(res, arg->arg);
     }
 
 }
 //Libflame write
 int FlameStub::read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
-    volume_->read(cmd_client_stub_, buff, offset, len, cb, arg);
+    volume->read(cmd_client_stub, buff, offset, len, cb, arg);
     return 0;
 }
 //Libflame write
 int FlameStub::write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
-    volume_->write(cmd_client_stub_, buff, offset, len, cb, arg);
+    volume->write(cmd_client_stub, buff, offset, len, cb, arg);
     return 0;
 }
 //Libflame reset
 int FlameStub::reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
-    volume_->reset(cmd_client_stub_, offset, len, cb, arg);
+    volume->reset(cmd_client_stub, offset, len, cb, arg);
     return 0;
 }
 //Libflame flush
 int FlameStub::flush(libflame_callback cb, void* arg){
-    volume_->flush(cmd_client_stub_, cb, arg);
+    volume->flush(cmd_client_stub, cb, arg);
     return 0;
 }
 

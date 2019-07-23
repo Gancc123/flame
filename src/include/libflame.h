@@ -1,10 +1,11 @@
-/**
- * @file libflame.h
- * @author zhzane (zhzane@outlook.com)
- * @brief 
- * @version 0.1
- * @date 2019-05-09
- * 
+/*
+ * @Descripttion: 
+ * @version: 
+ * @Author: lwg
+ * @Date: 2019-06-10 14:57:01
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-07-23 16:02:28
+ *
  * @copyright Copyright (c) 2019
  * 
  */
@@ -27,6 +28,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #if __GNUC__ >= 4
     #define FLAME_API __attribute__((visibility ("default")))
@@ -38,17 +40,14 @@ namespace flame {
 
 typedef void (*libflame_callback)(const Response& res, void* arg1);
 
-struct FLAME_API Config {
+struct  Config {
     std::string mgr_addr;
 
 }; // class Config
 
-// #ifdef __cpluscplus
-// extern "C" {
-// #endif
 
 //对单一chunk访问的结构
-struct FLAME_API ChunkOffLen {
+struct ChunkOffLen {
     uint64_t    chunk_id;
     uint64_t    offset;
     uint64_t    length;
@@ -61,7 +60,7 @@ struct ChunkAddr {
     uint32_t    port;
 };
 
-struct FLAME_API VolumeAttr {
+struct VolumeAttr {
     uint64_t    size;
     bool        prealloc;
     uint64_t    chk_sz;
@@ -69,7 +68,7 @@ struct FLAME_API VolumeAttr {
     uint32_t    spolicy;
 };
 
-struct FLAME_API VolumeMeta {
+struct VolumeMeta {
     uint64_t    id;
     std::string name;
     std::string vg_name;
@@ -80,11 +79,8 @@ struct FLAME_API VolumeMeta {
     uint32_t    spolicy;
     std::map<uint64_t, ChunkAddr> chunks_map;//保存chunk_index到ChunkAddr的映射，其中chunk_index从0开始
 };
-// #ifdef __cpluscplus
-// }
-// #endif
 
-class FLAME_API Volume {
+class Volume {
 public:
 
     Volume(const VolumeMeta volume_meta)
@@ -127,7 +123,7 @@ private:
     
 }; // class Volume
 
-class FLAME_API FlameStub {
+class FlameStub {
 public:
     static FlameStub* g_flame_stub;
     /**gRPC服务**/
@@ -173,14 +169,14 @@ public:
 
     FlameStub(FlameContext* flame_context, uint64_t gw_id, std::shared_ptr<grpc::Channel> channel)
     : flame_context_(flame_context), gw_id_(gw_id), stub_(LibFlameService::NewStub(channel)) {
-        volume_.reset(new Volume());
-        cmd_client_stub_ = CmdClientStubImpl::create_stub(nullptr);
+        volume.reset(new Volume());
+        cmd_client_stub = CmdClientStubImpl::create_stub(nullptr);
     }
 
     ~FlameStub() {}
 
-    std::unique_ptr<Volume> volume_;
-    std::shared_ptr<CmdClientStubImpl> cmd_client_stub_;
+    std::unique_ptr<Volume> volume;
+    std::shared_ptr<CmdClientStubImpl> cmd_client_stub;
 private:
     FlameContext* flame_context_;
     uint64_t gw_id_;

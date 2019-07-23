@@ -74,6 +74,10 @@ CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_modul
  * @return: 0表示成功
  */
 int CmdClientStubImpl::set_session(std::string ip_addr, int port){
+    uint64_t ip = string_to_ip(ip_addr);
+    int64_t io_addr = ip << 16 | (uint32_t)port;
+    if(session_.count(io_addr) == 1)
+        return 0;
     /**此处的NodeAddr仅作为msger_id_t唯一标识的参数，并不是实际通信地址的填充**/
     msg::NodeAddr* addr = new msg::NodeAddr(msg_context_);
     addr->ip_from_string(ip_addr);
@@ -88,8 +92,6 @@ int CmdClientStubImpl::set_session(std::string ip_addr, int port){
     rdma_addr->set_port(port);
     single_session->set_listen_addr(rdma_addr, msg::msg_ttype_t::RDMA);
     rdma_addr->put();
-    uint64_t ip = string_to_ip(ip_addr);
-    int64_t io_addr = ip << 16 | (uint32_t)port;
     session_[io_addr] = single_session; 
     return 0;
 }

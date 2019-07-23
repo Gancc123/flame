@@ -70,10 +70,9 @@ FlameStub* FlameStub::connect(std::string& path){
         }
     }
     FlameContext* flame_context = FlameContext::get_context();
-    FlameStub* flame_stub = new FlameStub(flame_context, ip, grpc::CreateChannel(
+    g_flame_stub = new FlameStub(flame_context, ip, grpc::CreateChannel(
         path, grpc::InsecureChannelCredentials())
     );
-    g_flame_stub = flame_stub;
     return g_flame_stub;
 }
 
@@ -269,11 +268,11 @@ int FlameStub::vol_meta(const std::string& vg_name, const std::string& vol_name,
         uint32_t retcode = reply.retcode();
         if (retcode != 0)
             return retcode;
-        volume_->set_id(reply.vol().vol_id());
-        volume_->set_name(reply.vol().name());
+        volume->set_id(reply.vol().vol_id());
+        volume->set_name(reply.vol().name());
         // set_group(const std::string& vg_name);
-        volume_->set_size(reply.vol().size());
-        volume_->set_ctime(reply.vol().ctime());
+        volume->set_size(reply.vol().size());
+        volume->set_ctime(reply.vol().ctime());
         // set_prealloc(bool v); 
         return 0;
     } else {
@@ -294,20 +293,20 @@ int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name,
 
     ChunkAddr addr;
     if (stat.ok()) {
-        volume_->volume_meta_.id =      reply.vol_id();
-        volume_->volume_meta_.name =    reply.vol_name();
-        volume_->volume_meta_.vg_name = reply.vg_name();
-        volume_->volume_meta_.size =    reply.vol_size();
-        volume_->volume_meta_.ctime =   reply.ctime();
-        // volume_->volume_meta_.prealloc = reply.prealloc();
-        volume_->volume_meta_.chk_sz =  reply.chk_sz();
-        volume_->volume_meta_.spolicy = reply.spolicy();
+        volume->volume_meta_.id =      reply.vol_id();
+        volume->volume_meta_.name =    reply.vol_name();
+        volume->volume_meta_.vg_name = reply.vg_name();
+        volume->volume_meta_.size =    reply.vol_size();
+        volume->volume_meta_.ctime =   reply.ctime();
+        // volume->volume_meta_.prealloc = reply.prealloc();
+        volume->volume_meta_.chk_sz =  reply.chk_sz();
+        volume->volume_meta_.spolicy = reply.spolicy();
 
         for (uint64_t i = 0; i < reply.chunks_size(); ++i) {
             addr.chunk_id = reply.chunks(i).chunk_id();
             addr.ip = reply.chunks(i).ip();
             addr.port = reply.chunks(i).port();
-            volume_->volume_meta_.chunks_map[i] = addr; //如index = 0 => (chunk_id, ip, port)
+            volume->volume_meta_.chunks_map[i] = addr; //如index = 0 => (chunk_id, ip, port)
         }
         return reply.retcode();
     } else {

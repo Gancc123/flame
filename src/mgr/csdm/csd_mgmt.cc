@@ -53,6 +53,13 @@ int CsdManager::init() {
 int CsdManager::csd_register(const csd_reg_attr_t& attr, CsdHandle** hp) {
     assert(hp != nullptr);
 
+    list<uint64_t> csd_ids;
+    for (int i = 1; i <= next_csd_id_; i++) {
+        csd_ids.push_back(i);
+    }
+    list<csd_addr_t> addrs;
+    csd_pull_addr(addrs, csd_ids);
+    
     uint64_t new_id = next_csd_id_.fetch_add(1);
 
     CsdHandle* hdl = create_csd_handle__(new_id);

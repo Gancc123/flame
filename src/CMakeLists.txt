@@ -313,6 +313,12 @@ add_library(libflame-objs OBJECT
     )
 list(APPEND obj_modules libflame)
 
+#### libflame_api
+add_library(libflame_api-objs OBJECT
+    libflame/libflame_api.cc
+    )
+list(APPEND obj_modules libflame_api)
+
 
 #### gen xxx_objs
 foreach(module IN LISTS obj_modules)
