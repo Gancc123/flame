@@ -33,6 +33,15 @@ Buffer RdmaAllocator::allocate(size_t sz) {
                         Buffer(std::shared_ptr<BufferPtr>(new RdmaBufferPtr(rb, this)));
 }
 
+Buffer* RdmaAllocator::allocate_ptr(size_t sz) {
+    RdmaBuffer *rb = nullptr;
+    if(allocator_ctx){
+        rb = allocator_ctx->alloc(sz);
+    }
+    return rb == nullptr ? new Buffer() : 
+                       new Buffer(std::shared_ptr<BufferPtr>(new RdmaBufferPtr(rb, this)));
+}
+
 size_t RdmaAllocator::max_size() const {
     return 0;
 }

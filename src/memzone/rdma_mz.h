@@ -41,6 +41,7 @@ public:
 
     // virtual BufferAllocator* get_buffer_allocator() override;
     virtual Buffer allocate(size_t sz) override;
+    virtual Buffer* allocate_ptr(size_t sz) override;
     virtual int type() const override { return BufferTypes::BUFF_TYPE_RDMA; }
     virtual size_t max_size() const override;
     virtual size_t min_size() const override;
@@ -66,8 +67,6 @@ private:
 public:
     virtual ~RdmaBufferPtr() {
         if(allocator && allocator->get_allocator_ctx()) {
-            //allocator->mmgr->get_rdma_allocator()->free(rb);
-            //std::cout << "free buffer" << std::endl;
             allocator->get_allocator_ctx()->free(rb);
         }
     }

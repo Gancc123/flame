@@ -442,6 +442,7 @@ public:
      */
     virtual Buffer allocate(size_t sz) = 0;
 
+    virtual Buffer* allocate_ptr(size_t sz) = 0;
 protected:
     BufferAllocator() {}
 }; // class BufferAllocator

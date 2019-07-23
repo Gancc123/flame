@@ -1,13 +1,4 @@
-#include <unistd.h>
-#include <cstdio>
-
 #include "include/libflame.h"
-
-#include "libflame/libchunk/libchunk.h"
-#include "include/csdc.h"
-#include "libflame/libchunk/log_libchunk.h"
-#include "common/context.h"
-#include "common/log.h"
 #include "util/spdk_common.h"
 
 
@@ -38,45 +29,43 @@ void cb_func2(const Response& res, void* arg){
 static void test_gateway(void *arg1, void *arg2){
     FlameContext *flame_context = FlameContext::get_context();
     if(!flame_context->init_config(CFG_PATH)){
-        clog("init config failed.");
         return ;
     }
     if(!flame_context->init_log("", "TRACE", "client")){
-        clog("init log failed.");
         return ;
     }
     std::cout << "load config completed.." << std::endl;
 
     std::shared_ptr<FlameStub> flame_stub;
     std::string ip = "192.168.3.112:6677";
-    flame_stub.reset(FlameStub::connect(ip));
+    flame_stub.reset(FlameStub::connect(ip));//manager地址
 
     if (flame_stub.get() == nullptr) {
-        clog("create flame=>mgr stub faild");
+        flame_context->log()->lerror("create flame=>mgr stub faild");
         return ;
     }
     struct VolumeMeta volume_meta = {0};
     Volume* res = new Volume(volume_meta);
     flame_stub->vol_open("vg1", "vol1", &res);
-    std::cout << "vol_id(): " << flame_stub->volume_->get_meta().id<< std::endl;
-    std::cout << "vol_name(): " << flame_stub->volume_->get_meta().name<< std::endl;
-    std::cout << "vg_name(): " << flame_stub->volume_->get_meta().vg_name<< std::endl;
-    std::cout << "vol_size(): " << flame_stub->volume_->get_meta().size<< std::endl;
-    std::cout << "ctime(): " << flame_stub->volume_->get_meta().ctime<< std::endl;
-    std::cout << "chk_sz(): " << flame_stub->volume_->get_meta().chk_sz<< std::endl;
-    std::cout << "spolicy(): " << flame_stub->volume_->get_meta().spolicy<< std::endl;
+    std::cout << "vol_id(): " << flame_stub->volume->get_meta().id<< std::endl;
+    std::cout << "vol_name(): " << flame_stub->volume->get_meta().name<< std::endl;
+    std::cout << "vg_name(): " << flame_stub->volume->get_meta().vg_name<< std::endl;
+    std::cout << "vol_size(): " << flame_stub->volume->get_meta().size<< std::endl;
+    std::cout << "ctime(): " << flame_stub->volume->get_meta().ctime<< std::endl;
+    std::cout << "chk_sz(): " << flame_stub->volume->get_meta().chk_sz<< std::endl;
+    std::cout << "spolicy(): " << flame_stub->volume->get_meta().spolicy<< std::endl;
 
     std::map<uint64_t, ChunkAddr>::iterator iter;
     std::cout << "-------------------------" << std::endl;
-    for(iter = flame_stub->volume_->get_meta().chunks_map.begin(); iter != flame_stub->volume_->get_meta().chunks_map.end(); ++iter){
+    for(iter = flame_stub->volume->get_meta().chunks_map.begin(); iter != flame_stub->volume->get_meta().chunks_map.end(); ++iter){
         std::cout << "index   : " << iter->first << std::endl;
         std::cout << "chunk_id: " << iter->second.chunk_id << std::endl;
         std::cout << "ip      : " << iter->second.ip << std::endl;
         std::cout << "port    : " << iter->second.port << std::endl;
         std::cout << "--------------------------" << std::endl;
     }
-    flame_stub->cmd_client_stub_->set_session("192.168.3.112", 9999);
-    flame_stub->cmd_client_stub_->set_session("192.168.3.112", 9996);
+    flame_stub->cmd_client_stub->set_session("192.168.3.112", 9999);
+    flame_stub->cmd_client_stub->set_session("192.168.3.112", 9996);
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
     Buffer buf_write = allocator->allocate(1 << 22); //4MB
     Buffer buf_read  = allocator->allocate(1 << 22); //4MB

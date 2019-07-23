@@ -380,7 +380,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    signal(SIGINT, pre_exit_csd);
+    // signal(SIGINT, pre_exit_csd);
 
     //获取全局上下文
     FlameContext *fct = FlameContext::get_context();
