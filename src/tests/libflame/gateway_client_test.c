@@ -34,10 +34,9 @@ static void test_gateway(void *arg1, void *arg2){
     printf("cluster_name = %s\n", cluster_name);
     printf("node_name = %s\n", node_name);
 
-    flame_stub_connect_mgr("192.168.3.112:6677");
-    VolumeMeta_t meta;
+    flame_handlers_connect_mgr("192.168.3.112:6677");
     int rc;
-    rc = flame_stub_open_volume("vg1", "vol1", &meta);
+    rc = flame_handlers_open_volume("vg1", "vol1");
     BufferInfo_t write_buf_info, read_buf_info;
     write_buf_info.size = 1 << 22;
     read_buf_info.size  = 1 << 22;
@@ -48,9 +47,9 @@ static void test_gateway(void *arg1, void *arg2){
     char *m = (char *)write_buf_info.addr;
     for(int i = 0; i < 8192 * 2; i++)
         *(m + i) = 'a' + i % 26;
-    rc = flame_write(write_buffer, GigaByte - 8192, 8192 * 2, cb_func2, NULL);
+    rc = flame_write("vg1", "vol1", write_buffer, GigaByte - 8192, 8192 * 2, cb_func2, NULL);
     getchar();
-    rc = flame_read(read_buffer, GigaByte - 8192, 8192 * 2, cb_func, (void*)read_buf_info.addr);
+    rc = flame_read("vg1", "vol1", read_buffer, GigaByte - 8192, 8192 * 2, cb_func, (void*)read_buf_info.addr);
     getchar();    
     printf("\nlwg\n");
     spdk_app_stop(0);

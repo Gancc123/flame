@@ -8,6 +8,7 @@
 #include <grpcpp/grpcpp.h>
 #include <regex>
 #include <string>
+#include <iterator>
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -20,11 +21,10 @@ using grpc::Status;
 #endif
 namespace flame {
 
-//FlameStub
-
-FlameStub* FlameStub::g_flame_stub = nullptr;
-FlameStub* FlameStub::connect(const Config& cfg){
-    if(g_flame_stub != nullptr) return g_flame_stub;
+//FlameHandlers
+FlameHandlers* FlameHandlers::g_flame_handlers = nullptr;
+FlameHandlers* FlameHandlers::connect(const Config& cfg){
+    if(g_flame_handlers != nullptr) return g_flame_handlers;
     /**将cfg.mgr_addr转换为uint32_t IP + uint32_t Port，gw_id用IP，admin_addr用(IP<<32 | Port)例如mgr_addr = "192.168.3.110:6666"**/
     uint32_t ip, port;
     std::regex pattern("([0-9]{1,3})[.]([0-9]{1,3})[.]([0-9]{1,3})[.]([0-9]{1,3})[:](\\d+)");
@@ -43,15 +43,15 @@ FlameStub* FlameStub::connect(const Config& cfg){
         }
     }
     FlameContext* flame_context = FlameContext::get_context();
-    FlameStub* flame_stub = new FlameStub(flame_context, ip, grpc::CreateChannel(
+    FlameHandlers* flame_handlers = new FlameHandlers(flame_context, ip, grpc::CreateChannel(
         cfg.mgr_addr, grpc::InsecureChannelCredentials())
     );
-    g_flame_stub = flame_stub;
-    return g_flame_stub;
+    g_flame_handlers = flame_handlers;
+    return g_flame_handlers;
 }
 
-FlameStub* FlameStub::connect(std::string& path){
-    if(g_flame_stub != nullptr) return g_flame_stub;
+FlameHandlers* FlameHandlers::connect(std::string& path){
+    if(g_flame_handlers != nullptr) return g_flame_handlers;
     /**将path转换为uint32_t IP + uint32_t Port，gw_id用IP，admin_addr用(IP<<32 | Port)例如mgr_addr = "192.168.3.110:6666"**/
     uint32_t ip, port;
     std::regex pattern("([0-9]{1,3})[.]([0-9]{1,3})[.]([0-9]{1,3})[.]([0-9]{1,3})[:](\\d+)");
@@ -70,13 +70,13 @@ FlameStub* FlameStub::connect(std::string& path){
         }
     }
     FlameContext* flame_context = FlameContext::get_context();
-    g_flame_stub = new FlameStub(flame_context, ip, grpc::CreateChannel(
+    g_flame_handlers = new FlameHandlers(flame_context, ip, grpc::CreateChannel(
         path, grpc::InsecureChannelCredentials())
     );
-    return g_flame_stub;
+    return g_flame_handlers;
 }
 
-int FlameStub::disconnect(){
+int FlameHandlers::disconnect(){
     CommonRequest req;
     req.set_gw_id(gw_id_);
 
@@ -94,7 +94,7 @@ int FlameStub::disconnect(){
 
 // Cluster API
 // return info of cluster by a argurment，现在暂时没管arg，默认返回所有集群信息
-int FlameStub::cluster_info(const std::string& arg, flame::cluster_meta_t& res){
+int FlameHandlers::cluster_info(const std::string& arg, flame::cluster_meta_t& res){
     CommonRequest req;
     req.set_gw_id(gw_id_);
 
@@ -118,7 +118,7 @@ int FlameStub::cluster_info(const std::string& arg, flame::cluster_meta_t& res){
 
 // VolumeGroup API
 // create an group.
-int FlameStub::vg_create(const std::string& vg_name){
+int FlameHandlers::vg_create(const std::string& vg_name){
     VGCreateRequest req;
     req.set_vg_name(vg_name);
 
@@ -134,7 +134,7 @@ int FlameStub::vg_create(const std::string& vg_name){
     }
 }
 // list group. return an list of group name.
-int FlameStub::vg_list(std::vector<volume_group_meta_t>& res){
+int FlameHandlers::vg_list(std::vector<volume_group_meta_t>& res){
     NoneParaRequest req;
 
     VGListReply reply;
@@ -160,7 +160,7 @@ int FlameStub::vg_list(std::vector<volume_group_meta_t>& res){
     }
 }
 // remove an group.
-int FlameStub::vg_remove(const std::string& vg_name){
+int FlameHandlers::vg_remove(const std::string& vg_name){
     VGRemoveRequest req;
     req.set_vg_name(vg_name);
 
@@ -180,7 +180,7 @@ int FlameStub::vg_remove(const std::string& vg_name){
 
 // Volume API
 // create an volume.
-int FlameStub::vol_create(const std::string& vg_name, const std::string& vol_name, const VolumeAttr& attr){
+int FlameHandlers::vol_create(const std::string& vg_name, const std::string& vol_name, const VolumeAttr& attr){
     VolCreateRequest req;
     req.set_vg_name(vg_name);
     req.set_vol_name(vol_name);
@@ -201,7 +201,7 @@ int FlameStub::vol_create(const std::string& vg_name, const std::string& vol_nam
     }
 }
 // list volumes. return an list of volume name.
-int FlameStub::vol_list(const std::string& vg_name, std::vector<flame::volume_meta_t>& res){
+int FlameHandlers::vol_list(const std::string& vg_name, std::vector<flame::volume_meta_t>& res){
     VolListRequest req;
     req.set_vg_name(vg_name);
 
@@ -232,7 +232,7 @@ int FlameStub::vol_list(const std::string& vg_name, std::vector<flame::volume_me
     }
 }
 // remove an volume.
-int FlameStub::vol_remove(const std::string& vg_name, const std::string& vol_name){
+int FlameHandlers::vol_remove(const std::string& vg_name, const std::string& vol_name){
     VolRemoveRequest req;
     req.set_vg_name(vg_name);
     req.set_vol_name(vol_name);
@@ -248,14 +248,8 @@ int FlameStub::vol_remove(const std::string& vg_name, const std::string& vol_nam
         return -stat.error_code();
     }
 }
-// // rename an volume. not support now
-// // int vol_rename(const std::string& vg_name, const std::string& src, const std::string& dst);
-// // move an volume to another group.
-// // int vol_move(const std::string& vg_name, const std::string& vol_name, const std::string& target);
-// // clone an volume
-// // int vol_clone(const std::string& src_group, const std::string& src_name, const std::string& dst_group, const std::string& dst_name);
-// read info of volume.
-int FlameStub::vol_meta(const std::string& vg_name, const std::string& vol_name, VolumeMeta& info){
+
+int FlameHandlers::vol_meta(const std::string& vg_name, const std::string& vol_name, VolumeMeta& info){
     VolInfoRequest req;
     req.set_vg_name(vg_name);
     req.set_vol_name(vol_name);
@@ -268,6 +262,15 @@ int FlameStub::vol_meta(const std::string& vg_name, const std::string& vol_name,
         uint32_t retcode = reply.retcode();
         if (retcode != 0)
             return retcode;
+        Volume* volume;
+        std::map<uint64_t, Volume *>::iterator iter=volumes.find(reply.vol().vol_id());
+        if(iter != volumes.end()){
+            volume = volumes[reply.vol().vol_id()];
+        }
+        else{
+            volume = volume = new Volume();
+            volumes[reply.vol().vol_id()] = volume;
+        } 
         volume->set_id(reply.vol().vol_id());
         volume->set_name(reply.vol().name());
         // set_group(const std::string& vg_name);
@@ -280,8 +283,8 @@ int FlameStub::vol_meta(const std::string& vg_name, const std::string& vol_name,
         return -stat.error_code();
     }
 }
-// open a volume, and return the io context of volume.
-int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name, Volume** res){
+
+int FlameHandlers::vol_open(const std::string& vg_name, const std::string& vol_name, Volume** res){
     VolOpenRequest req;
     req.set_gw_id(gw_id_);
     req.set_vg_name(vg_name);
@@ -293,6 +296,8 @@ int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name,
 
     ChunkAddr addr;
     if (stat.ok()) {
+        Volume* volume;
+        volume = new Volume();
         volume->volume_meta_.id =      reply.vol_id();
         volume->volume_meta_.name =    reply.vol_name();
         volume->volume_meta_.vg_name = reply.vg_name();
@@ -308,6 +313,7 @@ int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name,
             addr.port = reply.chunks(i).port();
             volume->volume_meta_.chunks_map[i] = addr; //如index = 0 => (chunk_id, ip, port)
         }
+        volumes[volume->volume_meta_.id] = volume;
         return reply.retcode();
     } else {
         flame_context_->log()->lerror("RPC Failed(%d): %s", stat.error_code(), stat.error_message().c_str());
@@ -316,7 +322,7 @@ int FlameStub::vol_open(const std::string& vg_name, const std::string& vol_name,
     return 0;
 }
 // close a volume
-int FlameStub::vol_close(const std::string& vg_name, const std::string& vol_name){
+int FlameHandlers::vol_close(const std::string& vg_name, const std::string& vol_name){
     return 0;
 }
 

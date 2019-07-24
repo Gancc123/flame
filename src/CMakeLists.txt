@@ -335,16 +335,16 @@ set(flame_common_objs
     ${msg_objs}
     )
 
-
-
-# foreach(o IN LISTS flame_common_objs)
-#     message(STATUS "${o}")
-# endforeach()
-
 add_library(common STATIC ${flame_common_objs})
 target_link_libraries(common
   PRIVATE ${flame_common_deps} ${ALLOC_LIBS}
   PUBLIC ${SPDK_LIBRARIES})
+
+add_library(common-except-spdk STATIC ${flame_common_objs})
+target_link_libraries(common-except-spdk
+PRIVATE ${flame_common_deps} ${ALLOC_LIBS}
+    )
+
 if(WITH_STATIC_LIBSTDCXX)
     # the apps linking against libcommon are daemons also written in C++, so we
     # need to link them against libstdc++.

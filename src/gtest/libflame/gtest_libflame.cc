@@ -15,7 +15,7 @@ TEST_F(TestLibFlame, TestVolume)
     meta.chunks_map[3] = {126, 194, 7777};
     Volume* volume = new Volume(meta);
     std::vector<ChunkOffLen> chunk_positions;
-    volume->vol_to_chunks(512, 2048, chunk_positions);
+    volume->_vol_to_chunks(512, 2048, chunk_positions);
     ASSERT_EQ(123,  chunk_positions[0].chunk_id);
     ASSERT_EQ(512,  chunk_positions[0].offset);
     ASSERT_EQ(512,  chunk_positions[0].length);
@@ -27,7 +27,7 @@ TEST_F(TestLibFlame, TestVolume)
     ASSERT_EQ(512, chunk_positions[2].length);
     chunk_positions.clear();
 
-    volume->vol_to_chunks(1023, 2049, chunk_positions);
+    volume->_vol_to_chunks(1023, 2049, chunk_positions);
     ASSERT_EQ(123,  chunk_positions[0].chunk_id);
     ASSERT_EQ(1023,  chunk_positions[0].offset);
     ASSERT_EQ(1,  chunk_positions[0].length);
@@ -39,7 +39,7 @@ TEST_F(TestLibFlame, TestVolume)
     ASSERT_EQ(1024, chunk_positions[2].length);
     chunk_positions.clear();
 
-    volume->vol_to_chunks(512, 2048, chunk_positions);
+    volume->_vol_to_chunks(512, 2048, chunk_positions);
     ASSERT_EQ(123,  chunk_positions[0].chunk_id);
     ASSERT_EQ(512,  chunk_positions[0].offset);
     ASSERT_EQ(512,  chunk_positions[0].length);
@@ -57,7 +57,7 @@ TEST_F(TestLibFlame, TestVolume)
     meta2.chunks_map[3] = {126, 194, 7777};
     Volume* volume2 = new Volume(meta2);
     uint64_t GigaByte = 1 << 30;
-    volume2->vol_to_chunks(GigaByte - 8192, 8192 * 2, chunk_positions);
+    volume2->_vol_to_chunks(GigaByte - 8192, 8192 * 2, chunk_positions);
     ASSERT_EQ(123,              chunk_positions[0].chunk_id);
     ASSERT_EQ(GigaByte - 8192,  chunk_positions[0].offset);
     ASSERT_EQ(8192,             chunk_positions[0].length);
@@ -65,13 +65,6 @@ TEST_F(TestLibFlame, TestVolume)
     ASSERT_EQ(0,                chunk_positions[1].offset);
     ASSERT_EQ(8192,             chunk_positions[1].length);
     chunk_positions.clear();
-
-    // flame_stub_->volume_.reset(new Volume(meta));
-    // flame_stub_->volume_->volume_meta_.id = 1;
-    // std::cout << &flame_stub_->volume_->volume_meta_ << std::endl;
-    // uint64_t offset, uint64_t length, std::vector<ChunkOffLen>& chunk_positions
-    // std::vector<ChunkOffLen> chunk_positions; 
-    // flame_stub_->volume_->vol_to_chunks()
     Print();
 }
 TEST_F(TestLibFlame, Test2)

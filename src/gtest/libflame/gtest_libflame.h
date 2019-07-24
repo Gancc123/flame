@@ -45,22 +45,15 @@ public:
         internal_ = 1;
         FlameContext* flame_context = FlameContext::get_context();
         uint64_t gw_id = 0;
-        // FlameStub* flame_stub_ = new FlameStub(flame_context, 0, grpc::CreateChannel(
-        //         "127.0.0.1:6667", grpc::InsecureChannelCredentials())
-        // );
     }
     ~TestLibFlame(){
-    //     //volume_manager_ = new VolumeManager();
+
     }
 
     void ChangeStudentAge(int n){
-        //share_ = n;
-        //s_->SetAge(n);
-        //cout << "Student age is " << s_->GetAge() << "; share_ is "<< share_ <<endl;
         cout << "Success" << endl;
     }
     void Print(){
-        //cout << "Student age is " << s_->GetAge() << "; share_ is "<< share_ <<endl;
         cout << "Success" << endl;
     }
 
@@ -86,7 +79,7 @@ public:
         cout<<"TearDown()"<<endl;
     }  
     
-    FlameStub *flame_stub_;
+    FlameHandlers *flame_handlers_;
     int internal_;
 };// class TestLibFlame
 

@@ -7,10 +7,10 @@ add_executable(gateway_client_test_cc
     ${proto_objs}
     ${work_objs}
     ${libchunk_objs}
+    ${libflame_objs}
     ${memory_objs}
     ../../service/libflame_client.cc
     gateway_client_test.cc
-    ../../libflame/libflame.cc
     )
 target_link_libraries(gateway_client_test_cc 
             common

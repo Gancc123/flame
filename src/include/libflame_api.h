@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-07-15 09:13:38
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-23 17:12:37
+ * @LastEditTime: 2019-07-24 10:53:45
  */
 
 
@@ -43,7 +43,7 @@ FLAME_API const char* get_node_name();
 
 FLAME_API void set_node_name(const char* node_name);
 
-/* FlameStub_API*/
+/* FlameHandlers_API*/
 typedef struct{
     uint64_t    chunk_id;
     uint32_t    ip;
@@ -67,11 +67,11 @@ typedef struct{
     ChunkAddrPair* chunk_addr_pair;//保存chunk_index到ChunkAddr的映射，其中chunk_index从0开始
 }VolumeMeta_t;
 
-FLAME_API void flame_stub_connect_mgr(const char* ip);
+FLAME_API void flame_handlers_connect_mgr(const char* ip);
 
-FLAME_API int flame_stub_open_volume(const char* volume_group, const char* volume, VolumeMeta_t* const volume_meta);
+FLAME_API int flame_handlers_open_volume(const char* volume_group, const char* volume);
 
-FLAME_API int flame_stub_set_session(const char* ip, const int port);
+FLAME_API int flame_handlers_set_session(const char* ip, const int port);
 
 /* Buffer_API*/
 typedef struct{
@@ -85,9 +85,9 @@ FLAME_API int allocate_buffer(BufferInfo_t* const buffer_info, void** buf);
 /*IO_API */
 typedef void (*libflame_callback)(void* arg);
 
-FLAME_API int flame_write(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
+FLAME_API int flame_write(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
 
-FLAME_API int flame_read(void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
+FLAME_API int flame_read(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
 
 #ifdef __cplusplus
 }

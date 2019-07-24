@@ -10,6 +10,7 @@
 #include <grpcpp/grpcpp.h>
 #include <regex>
 #include <string>
+#include <iterator>
 
 #define CONCURRENCY_MAX 1000
 using grpc::Channel;
@@ -41,31 +42,80 @@ void sub_cb(const Response& res, void* arg1){
             arg->cb(arg->arg);
     }
 }
-//Libflame write
-int FlameStub::read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+
+int FlameHandlers::_exist_volume(uint64_t volume_id){
+    std::map <uint64_t, Volume*>::iterator iter = volumes.find(volume_id);
+    if(iter == volumes.end()) return 0;
+    else return 1;
+}
+
+int FlameHandlers::vol_name_2_id(const std::string& group_name, const std::string& volume_name, uint64_t& volume_id){
+    std::map<uint64_t, Volume*>::iterator iter = volumes.begin();
+    for(; iter != volumes.end(); ++iter){
+        if(iter->second->get_name().compare(volume_name) == 0 && iter->second->get_vg_name().compare(group_name) == 0){
+            volume_id = iter->first;
+            return 0;
+        }
+    }
+    return -2;
+}
+
+int FlameHandlers::_id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name){
+    if(!_exist_volume(volume_id)) return -2;
+    std::map <uint64_t, Volume*>::iterator iter = volumes.find(volume_id);
+    for(; iter != volumes.end(); ++iter){
+        if(iter->first == volume_id){
+            group_name = iter->second->get_vg_name();
+            volume_name = iter->second->get_name();
+            return 0;
+        }
+    }
+}
+
+int FlameHandlers::read(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
+    int rc = 0;
+    uint64_t volume_id;
+    rc = vol_name_2_id(vg_name, vol_name, volume_id);     //exist检查已经包含在函数中
+    if(rc != 0) return -2;
+    Volume* volume = volumes[volume_id];
     volume->read(cmd_client_stub, buff, offset, len, cb, arg);
     return 0;
 }
-//Libflame write
-int FlameStub::write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+
+int FlameHandlers::write(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
+    int rc = 0;
+    uint64_t volume_id;
+    rc = vol_name_2_id(vg_name, vol_name, volume_id);     
+    if(rc != 0) return -2;
+    Volume* volume = volumes[volume_id];
     volume->write(cmd_client_stub, buff, offset, len, cb, arg);
     return 0;
 }
-//Libflame reset
-int FlameStub::reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+
+int FlameHandlers::reset(const std::string& vg_name, const std::string& vol_name, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+    int rc = 0;
+    uint64_t volume_id;
+    rc = vol_name_2_id(vg_name, vol_name, volume_id);     
+    if(rc != 0) return -2;
+    Volume* volume = volumes[volume_id];
     volume->reset(cmd_client_stub, offset, len, cb, arg);
     return 0;
 }
-//Libflame flush
-int FlameStub::flush(libflame_callback cb, void* arg){
+
+int FlameHandlers::flush(const std::string& vg_name, const std::string& vol_name, libflame_callback cb, void* arg){
+    int rc = 0;
+    uint64_t volume_id;
+    rc = vol_name_2_id(vg_name, vol_name, volume_id);    
+    if(rc != 0) return -2;
+    Volume* volume = volumes[volume_id];
     volume->flush(cmd_client_stub, cb, arg);
     return 0;
 }
 
 //Class Volume
-int Volume::vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOffLen>& chunk_positions){
+int Volume::_vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOffLen>& chunk_positions){
     uint64_t chunk_size = volume_meta_.chk_sz;
     int start_index = offset / chunk_size;
     int end_index = (offset + length) / chunk_size + ( ((offset + length) % chunk_size) == 0 ? (-1) : 0);
@@ -92,11 +142,12 @@ int Volume::vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOff
     chunk_positions.push_back(chunk_position);
     return 0;
 }
+
 // async io call
 int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
-    vol_to_chunks(offset, len, chunk_positions);
+    _vol_to_chunks(offset, len, chunk_positions);
     uint64_t addr = (uint64_t)buff.addr();
     uint32_t rkey = buff.rkey();
     sub_index = sub_index++ % CONCURRENCY_MAX;
@@ -124,7 +175,7 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffe
 int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
-    vol_to_chunks(offset, len, chunk_positions);
+    _vol_to_chunks(offset, len, chunk_positions);
     uint64_t addr = (uint64_t)buff.addr();
     uint32_t rkey = buff.rkey();
     sub_index = sub_index++ % CONCURRENCY_MAX;
