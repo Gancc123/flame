@@ -28,10 +28,14 @@ function(import_spdk spdk_dir)
     foreach(c
             copy_ioat
             ioat
+            vbdev_lvol
+            bdev_flamebd
             bdev_malloc
             bdev_null
             bdev_nvme
             nvme
+            app_rpc
+            bdev_rpc
             vbdev_passthru
             vbdev_error
             vbdev_gpt
@@ -44,6 +48,11 @@ function(import_spdk spdk_dir)
             sock_posix
             event_bdev
             event_copy
+            event_nbd
+            event_nvmf
+            nbd
+            nvmf
+            log_rpc
             blobfs
             blob
             bdev

@@ -11,4 +11,5 @@ add_subdirectory(libchunk)
 add_subdirectory(chunkstore)
 add_subdirectory(memzone)
 add_subdirectory(libflame)
+add_subdirectory(nvmf)
 
