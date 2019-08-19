@@ -1,9 +1,17 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-07-12 17:21:45
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-19 14:59:00
+ */
 #include <stdio.h>
 
 #include "include/libflame_api.h"
 #include "util/spdk_common.h"
 
-void cb_func(void* arg){
+void cb_func(void* arg, int status){
     char* mm = (char*)arg;
     for(int i = 0; i < 8192 * 2; i++){
         if(mm[i] == 0) printf(" ");
@@ -13,7 +21,7 @@ void cb_func(void* arg){
     return ;
 }
 
-void cb_func2(void* arg){
+void cb_func2(void* arg, int status){
     printf("write completed\n");
     return ;
 }
@@ -50,8 +58,7 @@ static void test_gateway(void *arg1, void *arg2){
     rc = flame_write("vg1", "vol1", write_buffer, GigaByte - 8192, 8192 * 2, cb_func2, NULL);
     getchar();
     rc = flame_read("vg1", "vol1", read_buffer, GigaByte - 8192, 8192 * 2, cb_func, (void*)read_buf_info.addr);
-    getchar();    
-    printf("\nlwg\n");
+    getchar();
     spdk_app_stop(0);
 }
 

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-29 14:52:07
+ * @LastEditTime: 2019-08-19 14:52:54
  *
  * @copyright Copyright (c) 2019
  * 
@@ -32,7 +32,7 @@
 
 namespace flame {
 
-typedef void (*libflame_callback)(void* arg1, int status);
+typedef void (*libflame_callback)(void* arg, int status);
 
 struct  Config {
     std::string mgr_addr;
