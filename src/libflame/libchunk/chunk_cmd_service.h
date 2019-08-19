@@ -3,8 +3,8 @@
  * @version: 
  * @Author: liweiguang
  * @Date: 2019-05-13 15:07:59
- * @LastEditors: Please set LastEditors
- * @LastEditTime: 2019-06-14 15:56:03
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-19 14:30:10
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
 #define FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
@@ -25,6 +25,9 @@
 #include "util/spdk_common.h"
 #include "memzone/rdma_mz.h"
 
+#define IO_READ  0
+#define IO_WRITE  1
+
 namespace flame {
 
 struct Iocb{
@@ -39,7 +42,7 @@ struct Iocb{
 
 inline void io_cb_func(void* argc){
     FlameContext* fct = FlameContext::get_context();
-    fct->log()->ltrace("nvmestore handled done");
+    fct->log()->ldebug("nvmestore handled done");
     Iocb* iocb = (Iocb*)argc;
     RdmaWorkRequest* req = iocb->req;
     req->status = RdmaWorkRequest::Status::EXEC_DONE;
@@ -65,11 +68,11 @@ public:
             //read，将数据读到lbuf，io_cb_func的回调在这里实际上是在disk->lbuf后执行req->run()，只是此时req->status = EXEC_DONE
             std::shared_ptr<Chunk> chunk = cct_->cs()->chunk_open(cmd_chunk_read->get_chk_id());
             Iocb* iocb = new Iocb(cct_->cs(), chunk, req);
-            chunk_io_rw(chunk, cmd_chunk_read->get_off(), cmd_chunk_read->get_ma_len(), (uint64_t)lbuf.addr(), 0, io_cb_func, iocb); 
+            chunk_io_rw(chunk, cmd_chunk_read->get_off(), cmd_chunk_read->get_ma_len(), (uint64_t)lbuf.addr(), IO_READ, io_cb_func, iocb); 
         }else if(req->status == RdmaWorkRequest::Status::EXEC_DONE){           //** 进行RDMA WRITE(server write到client相当于读)**//
             ChunkReadCmd* cmd_chunk_read = new ChunkReadCmd((cmd_t *)req->command);
             cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_read->get_content())->ma; 
-            if(cmd_chunk_read->get_ma_len() > 4096){   //**利用WRITE
+            if(cmd_chunk_read->get_ma_len() > MAX_INLINE_SIZE){   //**利用WRITE
                 req->sge_[0].addr = (uint64_t)req->data_buf_.addr();
                 req->sge_[0].length = req->data_buf_.size();
                 req->sge_[0].lkey = req->data_buf_.lkey();
@@ -111,8 +114,6 @@ public:
 
                 rdma_conn->post_send(req);
             }
-            
-
         }else if(req->status == RdmaWorkRequest::Status::WRITE_DONE){       
             cmd_rc_t rc = 0;
             cmd_t cmd = *(cmd_t *)req->command;
@@ -151,12 +152,12 @@ private:
     inline int chunk_io_rw(std::shared_ptr<Chunk> chunk, chk_off_t offset, uint32_t len, uint64_t laddr, bool rw, chunk_opt_cb_t cb_fn, void* cb_arg){
         FlameContext* fct = FlameContext::get_context();
         if(rw){ //**write
-            fct->log()->ltrace("%c%c%c",((char *)laddr)[0], ((char *)laddr)[1], ((char *)laddr)[2]); 
+            fct->log()->ltrace("write offset = %u, len = %u", offset, len); 
             chunk->write_async((void *)laddr, offset, len, cb_fn, cb_arg); 
         }
         else{   //**read
             chunk->read_async((void *)laddr, offset, len, cb_fn, cb_arg);
-            fct->log()->ltrace("read"); 
+            fct->log()->ltrace("read offset = %u, len = %u", offset, len); 
         }
         return RC_SUCCESS;
     }
@@ -176,7 +177,7 @@ public:
                 std::shared_ptr<Chunk> chunk = cct_->cs()->chunk_open(cmd_chunk_write->get_chk_id());
                 Iocb* iocb = new Iocb(cct_->cs(), chunk, req);
                 chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->data_buf_.addr(),\
-                                                                     1, io_cb_func, iocb); 
+                                                                     IO_WRITE, io_cb_func, iocb); 
                 return 0;
             }
             cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_write->get_content())->ma;  
@@ -211,7 +212,7 @@ public:
             FlameContext* fct = FlameContext::get_context();
             fct->log()->ltrace("chunk addr: %x", chunk.get());
             chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->data_buf_.addr(),\
-                                                                     1, io_cb_func, iocb); 
+                                                                     IO_WRITE, io_cb_func, iocb); 
 
         }else if(req->status == RdmaWorkRequest::Status::EXEC_DONE){      
             cmd_rc_t rc = 0;
@@ -253,12 +254,12 @@ private:
         FlameContext* fct = FlameContext::get_context();
         fct->log()->ltrace("chunk addr:%x",chunk.get()); 
         if(rw){ //**write
-            fct->log()->ltrace("%c%c%c offset = %u, len = %u",((char *)laddr)[0], ((char *)laddr)[1], ((char *)laddr)[2], offset, len); 
+            fct->log()->ltrace("write offset = %u, len = %u", offset, len); 
             chunk->write_async((void *)laddr, offset, len, cb_fn, cb_arg); 
         }
         else{   //**read
             chunk->read_async((void *)laddr, offset, len, cb_fn, cb_arg);
-            fct->log()->ltrace("read"); 
+            fct->log()->ltrace("read offset = %u, len = %u", offset, len); 
         }
         return RC_SUCCESS;
     }

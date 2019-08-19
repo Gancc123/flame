@@ -39,11 +39,11 @@ void sub_cb(const Response& res, void* arg1){
     if(*(arg->sub) == arg->total_completion){
         *(arg->sub) = 0;
         if(arg->cb != nullptr)
-            arg->cb(arg->arg);
+            arg->cb(arg->arg, 0); //*默认状态都是成功
     }
 }
 
-int FlameHandlers::_exist_volume(uint64_t volume_id){
+int FlameHandlers::exist_volume(uint64_t volume_id){
     std::map <uint64_t, Volume*>::iterator iter = volumes.find(volume_id);
     if(iter == volumes.end()) return 0;
     else return 1;
@@ -60,8 +60,8 @@ int FlameHandlers::vol_name_2_id(const std::string& group_name, const std::strin
     return -2;
 }
 
-int FlameHandlers::_id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name){
-    if(!_exist_volume(volume_id)) return -2;
+int FlameHandlers::id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name){
+    if(!exist_volume(volume_id)) return -2;
     std::map <uint64_t, Volume*>::iterator iter = volumes.find(volume_id);
     for(; iter != volumes.end(); ++iter){
         if(iter->first == volume_id){

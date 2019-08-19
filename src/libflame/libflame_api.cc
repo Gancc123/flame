@@ -97,14 +97,17 @@ extern "C" int flame_handlers_open_volume(const char* volume_group_name, const c
         flame_context->log()->lerror("create flame=>mgr stub faild");
         return -1;
     }
-    struct VolumeMeta meta = {0};
-    Volume* res = new Volume(meta);
-    int rc = 0;
-    rc = flame_handlers->vol_open(volume_group_name, volume_name, &res);
     uint64_t volume_id;
     std::string vg_name(volume_group_name), name(volume_name);
+    int rc = 0;
     rc = flame_handlers->vol_name_2_id(vg_name, name, volume_id);
-    if(rc != 0) return -2;
+    if(rc == 0){ //* 证明之前缓存过
+        return 0;
+    }
+    struct VolumeMeta meta = {0};
+    Volume* res = new Volume(meta);
+    rc = flame_handlers->vol_open(volume_group_name, volume_name, &res);
+    rc = flame_handlers->vol_name_2_id(vg_name, name, volume_id);
     std::map<uint64_t, ChunkAddr>* chunks = & (flame_handlers->volumes[volume_id]->get_meta().chunks_map);
     int chunks_num = chunks->size(), i = 0;
     std::map<uint64_t, ChunkAddr>::iterator iter = chunks->begin();

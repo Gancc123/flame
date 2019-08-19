@@ -11,7 +11,7 @@ using FlameContext = flame::FlameContext;
 #define CFG_PATH "flame_client.cfg"
 
 
-void cb_func(void* arg){
+void cb_func(void* arg, int status){
     char* mm = (char*)arg;
     for(int i = 0; i < 8192 * 2; i++){
         if(mm[i] == 0) std::cout << " ";
@@ -21,7 +21,7 @@ void cb_func(void* arg){
     return ;
 }
 
-void cb_func2(void* arg){
+void cb_func2(void* arg, int status){
     std::cout << "222" << std::endl;
     return ;
 }

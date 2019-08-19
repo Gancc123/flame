@@ -29,7 +29,6 @@ function(import_spdk spdk_dir)
             copy_ioat
             ioat
             vbdev_lvol
-            bdev_flamebd
             bdev_malloc
             bdev_null
             bdev_nvme
@@ -40,7 +39,6 @@ function(import_spdk spdk_dir)
             vbdev_error
             vbdev_gpt
             vbdev_split
-            # vbdev_raid
             bdev_aio
             bdev_virtio
             virtio
@@ -68,24 +66,12 @@ function(import_spdk spdk_dir)
             jsonrpc
             json
             rpc)
-        add_library(spdk::${c} STATIC IMPORTED)
         set(spdk_${c}_LIBRARY
             "${spdk_dir}/build/lib/${CMAKE_STATIC_LIBRARY_PREFIX}spdk_${c}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set_target_properties(spdk::${c} PROPERTIES
-            IMPORTED_LOCATION "${spdk_${c}_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES "${SPDK_INCLUDE_DIR}")
         list(APPEND SPDK_LIBRARIES_WHOLE_ARCHIVE "${spdk_${c}_LIBRARY}")
     endforeach()
 
     add_library(spdk::spdk_whole_archive INTERFACE IMPORTED)
-    add_dependencies(spdk::spdk_whole_archive ${SPDK_LIBRARIES_WHOLE_ARCHIVE})
-
-    set_target_properties(spdk::spdk_whole_archive PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${SPDK_INCLUDE_DIR})
-
-    set_target_properties(spdk::bdev_aio PROPERTIES
-        INTERFACE_LINK_LIBRARIES ${AIO_LIBS})
-
     list(APPEND SPDK_LIBRARIES spdk::spdk_whole_archive)
 
     foreach(c 
@@ -98,7 +84,7 @@ function(import_spdk spdk_dir)
 
     set_property(TARGET spdk::env_dpdk PROPERTY
         INTERFACE_LINK_LIBRARIES 
-        dpdk::dpdk numa dl rt crypto
+        dpdk::dpdk numa dl rt 
         )
 
     set_property(TARGET spdk::spdk_whole_archive PROPERTY
@@ -108,6 +94,20 @@ function(import_spdk spdk_dir)
     
     set(SPDK_INCLUDE_DIR ${SPDK_INCLUDE_DIR} PARENT_SCOPE)
     set(SPDK_LIBRARIES ${SPDK_LIBRARIES} PARENT_SCOPE)
+
+    #######
+    set(spdk_bdev_flamebd_LIBRARY
+        "${spdk_dir}/build/lib/${CMAKE_STATIC_LIBRARY_PREFIX}spdk_bdev_flamebd${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    list(APPEND SPDK_LIBRARIES_WHOLE_ARCHIVE "${spdk_bdev_flamebd_LIBRARY}")
+
+    add_library(spdk::spdk_whole_archive2 INTERFACE IMPORTED)
+    list(APPEND SPDK_FLAME_LIBRARIES spdk::spdk_whole_archive2)
+
+    set_property(TARGET spdk::spdk_whole_archive2 PROPERTY
+        INTERFACE_LINK_LIBRARIES 
+        "-Wl,--whole-archive $<JOIN:${SPDK_LIBRARIES_WHOLE_ARCHIVE}, > -Wl,--no-whole-archive" aio uuid rdmacm ibverbs spdk::env_dpdk)
+
+    set(SPDK_FLAME_LIBRARIES ${SPDK_FLAME_LIBRARIES} PARENT_SCOPE)
 
 endfunction()
 

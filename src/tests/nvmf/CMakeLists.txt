@@ -1,6 +1,5 @@
 set(TESTS_LIBCHUNK_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/tests/nvmf_tgt)
 
-# c version test
 add_executable(nvmf_tgt
     ${chunkstore_objs}
     ${proto_objs}
@@ -13,9 +12,9 @@ add_executable(nvmf_tgt
     nvmf_tgt.c
     )
 target_link_libraries(nvmf_tgt 
-            common
+            common-except-spdk
             ${flame_grpc_deps}
-            ${SPDK_LIBRARIES}
+            ${SPDK_FLAME_LIBRARIES}
             )
 
 set_target_properties(nvmf_tgt

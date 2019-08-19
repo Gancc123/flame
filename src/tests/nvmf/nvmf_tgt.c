@@ -69,6 +69,7 @@ main(int argc, char **argv)
 	opts.name = "nvmf";
 	opts.config_file = SPDK_NVMF_DEFAULT_CONFIG;
 	opts.max_delay_us = 1000; /* 1 ms */
+	opts.mem_size = 2048;
 	if ((rc = spdk_app_parse_args(argc, argv, &opts, "",
 				      nvmf_parse_arg, nvmf_usage)) !=
 	    SPDK_APP_PARSE_ARGS_SUCCESS) {

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:06:41
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-19 10:46:26
+ */
 #include "common/context.h"
 #include "common/cmdline.h"
 #include "common/convert.h"
@@ -144,10 +152,7 @@ void test_start(void *arg1, void *arg2) {
 
     memset(buffer, 'c', 4096);
 
-    //struct request *req=new request(CHUNK_ID, 0, 4096, 1, buffer);
     struct IOCB *ioc=new IOCB(cs, chunk, CHUNK_ID, 0, 4096, 1, buffer );
-   
-    //chunk->write_async(buffer, 0, 4096, ::write_call_back, (void *)chunk);
     chunk->write_async(buffer, 0, 4096, ::write_call_back, ioc);
 }
 

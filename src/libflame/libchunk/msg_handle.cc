@@ -3,8 +3,8 @@
  * @version: 
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
- * @LastEditors: Please set LastEditors
- * @LastEditTime: 2019-06-14 15:57:28
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-19 11:27:50
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -145,7 +145,7 @@ void RdmaWorkRequest::run(){
                     CmdServiceMapper* cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper(); 
                     //std::cout << "RdmaworkRequest::run: " << spdk_env_get_current_core() << std::endl;
                     FlameContext* fct = FlameContext::get_context();
-                    fct->log()->lerror("RdmaworkRequest::run: %u",spdk_env_get_current_core());
+                    fct->log()->ldebug("RdmaworkRequest::run: %u",spdk_env_get_current_core());
                     CmdService* service = cmd_service_mapper->get_service(((cmd_t *)command)->hdr.cn.cls, ((cmd_t *)command)->hdr.cn.seq);
                     this->service_ = service;
                     service_->call(this);                    
@@ -177,14 +177,16 @@ void RdmaWorkRequest::run(){
                 MsgCallBack cb = cb_map[key];
                 if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_READ){  //读操作
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
-                    if(res->get_inline_len() > 0 && res->get_inline_len() <= 4096 && cb.cb_arg == nullptr){    //inline read
+                    if(res->get_inline_len() > 0 && res->get_inline_len() <= MAX_INLINE_SIZE){    //TODO inline read
+                        FlameContext* fct = FlameContext::get_context();
+                        fct->log()->ldebug("inline read !!");
                         cb.cb_fn(*(Response *)res, (void *)data_buf_.addr());
                     }
                     else if(cb.cb_fn != nullptr){
                         cb.cb_fn(*(Response *)res, cb.cb_arg);
                     } 
                 }
-                else if(cb.cb_fn != nullptr){           //写操作
+                else if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_WRITE && cb.cb_fn != nullptr){           //写操作
                     CommonRes* res = new CommonRes((cmd_res_t*)command);
                     cb.cb_fn(*(Response *)command, cb.cb_arg);
                 }

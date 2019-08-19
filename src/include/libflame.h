@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-24 11:39:15
+ * @LastEditTime: 2019-07-29 14:52:07
  *
  * @copyright Copyright (c) 2019
  * 
@@ -32,7 +32,7 @@
 
 namespace flame {
 
-typedef void (*libflame_callback)(void* arg1);
+typedef void (*libflame_callback)(void* arg1, int status);
 
 struct  Config {
     std::string mgr_addr;
@@ -135,6 +135,8 @@ public:
     int vol_open(const std::string& vg_name, const std::string& vol_name, Volume** res);
     int vol_close(const std::string& vg_name, const std::string& vol_name);
 
+    int exist_volume(uint64_t volume_id);
+    int id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name);
     int vol_name_2_id(const std::string& group_name, const std::string& volume_name, uint64_t& volume_id);
     /**注意：下列函数均为获得了Volume句柄后进行的操作**/
     // Volume async io call
@@ -156,9 +158,6 @@ private:
     FlameContext* flame_context_;
     uint64_t gw_id_;
     std::unique_ptr<LibFlameService::Stub> stub_; 
-
-    int _exist_volume(uint64_t volume_id);
-    int _id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name);
 
     FlameHandlers(const FlameHandlers& rhs) = delete;
     FlameHandlers& operator=(const FlameHandlers& rhs) = delete;
