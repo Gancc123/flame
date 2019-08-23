@@ -134,13 +134,6 @@ public:
     int set_rdma_enable(const std::string &v);
 
     /**
-     * RDMA Connection version
-     * @cfg: rdma_conn_version
-     */
-    int rdma_conn_version;
-    int set_rdma_conn_version(const std::string &v);
-    
-    /**
      * RDMA device name
      * @cfg: rdma_device_name
      */
