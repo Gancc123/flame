@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:43
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 14:49:49
+ */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 #define FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 
@@ -60,7 +68,7 @@ public:
         return &recv_wr_;
     }
 
-    inline virtual Buffer get_data_buf(){
+    inline virtual Buffer& get_data_buf(){
         return data_buf_;
     }
 

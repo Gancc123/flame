@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-07-15 09:13:38
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-19 14:52:22
+ * @LastEditTime: 2019-08-20 10:40:20
  */
 
 
@@ -83,7 +83,7 @@ typedef struct{
 FLAME_API int allocate_buffer(BufferInfo_t* const buffer_info, void** buf);
 
 /*IO_API */
-typedef void (*libflame_callback)(void* arg, int status);
+typedef void (*libflame_callback)(uint64_t bufaddr, void* context, int status);
 
 FLAME_API int flame_write(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg);
 

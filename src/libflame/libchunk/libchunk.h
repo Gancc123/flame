@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:43
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 10:11:43
+ */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_LIBCHUNK_H
 #define FLAME_LIBFLAME_LIBCHUNK_LIBCHUNK_H
 
@@ -42,7 +50,7 @@ public:
 
     inline virtual std::map<uint32_t, MsgCallBack>& get_cb_map() override {return msg_cb_map_;}
 
-    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg) override;
+    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t buf, void* cb_arg) override;
 
     int set_session(std::string ip_addr, int port);
 

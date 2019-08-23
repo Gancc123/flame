@@ -23,5 +23,5 @@ target_link_libraries(flame
 
 install(TARGETS flame DESTINATION /usr/lib)
 install(FILES
-    libflame/libflame_api.h
+    include/libflame_api.h
     DESTINATION /usr/include/fbd)

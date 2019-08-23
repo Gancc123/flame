@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-19 11:27:50
+ * @LastEditTime: 2019-08-20 11:20:38
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -143,7 +143,6 @@ void RdmaWorkRequest::run(){
             switch(status){
                 case RECV_DONE:{
                     CmdServiceMapper* cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper(); 
-                    //std::cout << "RdmaworkRequest::run: " << spdk_env_get_current_core() << std::endl;
                     FlameContext* fct = FlameContext::get_context();
                     fct->log()->ldebug("RdmaworkRequest::run: %u",spdk_env_get_current_core());
                     CmdService* service = cmd_service_mapper->get_service(((cmd_t *)command)->hdr.cn.cls, ((cmd_t *)command)->hdr.cn.seq);
@@ -174,21 +173,24 @@ void RdmaWorkRequest::run(){
             case RECV_DONE:{
                 std::map<uint32_t, MsgCallBack>& cb_map = msger_->get_client_stub()->get_cb_map();
                 uint32_t key = ((cmd_res_t*)command)->hdr.cqg << 16 | ((cmd_res_t*)command)->hdr.cqn;
-                MsgCallBack cb = cb_map[key];
-                if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_READ){  //读操作
+                MsgCallBack msg_cb = cb_map[key];
+                if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_READ && msg_cb.cb_fn != nullptr){  //读操作
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
-                    if(res->get_inline_len() > 0 && res->get_inline_len() <= MAX_INLINE_SIZE){    //TODO inline read
+                    if(res->get_inline_len() > 0 && res->get_inline_len() <= MAX_INLINE_SIZE){
                         FlameContext* fct = FlameContext::get_context();
                         fct->log()->ldebug("inline read !!");
-                        cb.cb_fn(*(Response *)res, (void *)data_buf_.addr());
+                        msg_cb.cb_fn(*(Response *)res, (uint64_t)data_buf_.addr(), msg_cb.cb_arg);
                     }
-                    else if(cb.cb_fn != nullptr){
-                        cb.cb_fn(*(Response *)res, cb.cb_arg);
-                    } 
+                    else {
+                        FlameContext* fct = FlameContext::get_context();
+                        fct->log()->ldebug("uninline read !!");
+                        msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
+                    }
+                        
                 }
-                else if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_WRITE && cb.cb_fn != nullptr){           //写操作
+                else if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_WRITE && msg_cb.cb_fn != nullptr){           //写操作
                     CommonRes* res = new CommonRes((cmd_res_t*)command);
-                    cb.cb_fn(*(Response *)command, cb.cb_arg);
+                    msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
                 }
                 cb_map.erase(key);
                 status = DESTROY;

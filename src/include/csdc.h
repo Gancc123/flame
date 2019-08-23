@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:43
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-19 14:30:02
+ * @LastEditTime: 2019-08-19 16:43:25
  */
 /**
  * @file csdc.h
@@ -23,7 +23,7 @@
 #include "libflame/libchunk/log_libchunk.h"
 #include <memory.h>
 
-#define MAX_INLINE_SIZE 1024
+#define MAX_INLINE_SIZE 4096
 
 #ifdef __cplusplus
 extern "C" {

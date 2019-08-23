@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-05-13 09:35:50
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 11:00:47
+ */
 #include "include/libflame.h"
 
 #include "proto/libflame.grpc.pb.h"
@@ -33,13 +41,13 @@ struct cb_arg{
     void* arg;
 };
 
-void sub_cb(const Response& res, void* arg1){
+void sub_cb(const Response& res, uint64_t bufaddr, void* arg1){
     struct cb_arg* arg= (struct cb_arg *)arg1;
     (*(arg->sub))++;
     if(*(arg->sub) == arg->total_completion){
         *(arg->sub) = 0;
         if(arg->cb != nullptr)
-            arg->cb(arg->arg, 0); //*默认状态都是成功
+            arg->cb(bufaddr, arg->arg, 0); //*默认状态都是成功
     }
 }
 
@@ -149,11 +157,12 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffe
     std::vector<ChunkOffLen> chunk_positions;
     _vol_to_chunks(offset, len, chunk_positions);
     uint64_t addr = (uint64_t)buff.addr();
+    uint64_t start_addr = addr;
     uint32_t rkey = buff.rkey();
     sub_index = sub_index++ % CONCURRENCY_MAX;
     cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg}; 
 
-    for(int i = 0; i < chunk_positions.size(); i++){  //暂时都采用无inline的读
+    for(int i = 0; i < chunk_positions.size(); i++){ 
         uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
         uint64_t peer_io_addr = peer_io_op << 16 | volume_meta_.chunks_map[i].port;
         uint64_t chunk_id = chunk_positions[i].chunk_id;
@@ -167,7 +176,7 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffe
         MemoryArea* memory_read = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
         ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, chunk_id, offset_inner, length_inner, *memory_read); 
-        cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, (void*)sub_arg);
+        cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, start_addr, (void*)sub_arg);
         addr += length_inner;
     }
     return 0;
@@ -177,11 +186,11 @@ int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buff
     std::vector<ChunkOffLen> chunk_positions;
     _vol_to_chunks(offset, len, chunk_positions);
     uint64_t addr = (uint64_t)buff.addr();
+    uint64_t start_addr = addr;
     uint32_t rkey = buff.rkey();
     sub_index = sub_index++ % CONCURRENCY_MAX;
     cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg};
-
-    for(int i = 0; i < chunk_positions.size(); i++){  //暂时全部都采用无inline的写
+    for(int i = 0; i < chunk_positions.size(); i++){
         uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
         uint64_t peer_io_addr = peer_io_op << 16 | (uint32_t)volume_meta_.chunks_map[i].port;
         uint64_t chunk_id = chunk_positions[i].chunk_id;
@@ -195,7 +204,7 @@ int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buff
         MemoryArea* memory_write = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, chunk_id, offset_inner, length_inner, *memory_write, 1); 
-        cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, sub_cb, (void*)sub_arg);
+        cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, sub_cb, start_addr, (void*)sub_arg);
         addr += length_inner;
     }
     return 0;

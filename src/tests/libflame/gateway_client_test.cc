@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-25 14:25:29
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 15:51:51
+ */
 #include "include/libflame.h"
 #include "util/spdk_common.h"
 
@@ -11,8 +19,8 @@ using FlameContext = flame::FlameContext;
 #define CFG_PATH "flame_client.cfg"
 
 
-void cb_func(void* arg, int status){
-    char* mm = (char*)arg;
+void cb_func(uint64_t addr, void* arg, int status){
+    char* mm = (char*)addr;
     for(int i = 0; i < 8192 * 2; i++){
         if(mm[i] == 0) std::cout << " ";
         else std::cout << mm[i];
@@ -21,7 +29,7 @@ void cb_func(void* arg, int status){
     return ;
 }
 
-void cb_func2(void* arg, int status){
+void cb_func2(uint64_t addr, void* arg, int status){
     std::cout << "222" << std::endl;
     return ;
 }
@@ -81,7 +89,7 @@ static void test_gateway(void *arg1, void *arg2){
         *(m + i) = 'a' + i % 26;
     flame_handlers->write(vg_name, vol_name, buf_write, GigaByte - 8192, 8192 * 2, cb_func2, nullptr);
     getchar();
-    flame_handlers->read(vg_name, vol_name, buf_read, GigaByte - 8192, 8192 * 2, cb_func, buf_read.addr());
+    flame_handlers->read(vg_name, vol_name, buf_read, GigaByte - 8192, 8192 * 2, cb_func, nullptr);
     getchar();
     spdk_app_stop(0);
 }

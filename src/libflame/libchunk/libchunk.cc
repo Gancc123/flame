@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 14:57:01
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 15:51:56
+ */
 #include "libflame/libchunk/libchunk.h"
 
 #include "include/csdc.h"
@@ -124,29 +132,30 @@ RdmaWorkRequest* CmdClientStubImpl::get_request(){
 /**
  * @name: submit 
  * @describtions: libflame端提交请求到CSD端 
- * @param   Conmmand&           cmd         准备发送的命令
- *          cmd_cb_fn_t*        cb_fn       命令得到回复后的回调函数
- *          void*               cb_arg      回调函数的参数
+ * @param   
  * @return: 
  */
-int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg){
+int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t bufaddr, void* cb_arg){
     ((cmd_t *)req.command)->hdr.cqn = ((ring++)%256);
     msg::Connection* conn = session_[io_addr]->get_conn(msg::msg_ttype_t::RDMA);
     msg::RdmaConnection* rdma_conn = msg::RdmaStack::rdma_conn_cast(conn);
     if(((cmd_t *)req.command)->hdr.cn.seq == CMD_CHK_IO_WRITE){
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd((cmd_t *)req.command);
-        FlameContext* fct = FlameContext::get_context();
         if(write_cmd->get_inline_data_len() > 0){
+            uint32_t length = write_cmd->get_ma_len();
+            Buffer inline_data_buf = req.get_data_buf();
+            char* inline_data  = (char*)inline_data_buf.addr();
+            strncpy(inline_data, (char*)bufaddr, length);
             (req.get_ibv_send_wr())->num_sge = 2;
         }
     }
     rdma_conn->post_send(&req);
     struct MsgCallBack msg_cb;
-    msg_cb.cb_fn = cb_fn;
-    msg_cb.cb_arg = cb_arg;
+    msg_cb.cb_fn    = cb_fn;
+    msg_cb.buf      = bufaddr;   //此处的bufaddr可能被inline过来的addr代替
+    msg_cb.cb_arg   = cb_arg;
     uint32_t cq = ((cmd_t *)req.command)->hdr.cqg << 16 | ((cmd_t *)req.command)->hdr.cqn;
     msg_cb_map_.insert(std::map<uint32_t, MsgCallBack>::value_type (cq, msg_cb));
-    
     return 0;
 }
 

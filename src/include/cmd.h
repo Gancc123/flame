@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:43
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 10:15:00
+ */
 /**
  * @file cmd.h
  * @author zhzane (zhzane@outlook.com)
@@ -484,24 +492,23 @@ protected:
     virtual ~MemoryArea() {}
 };//class MemoryArea
 
-typedef void(*cmd_cb_fn_t)(const Response& res, void* arg);
+typedef void(*cmd_cb_fn_t)(const Response& res, uint64_t bufaddr, void* arg);
 class RdmaWorkRequest;
 
 struct MsgCallBack{
     cmd_cb_fn_t cb_fn;
+    uint64_t buf;
     void* cb_arg;
 };
 
 class CmdClientStub {
 public:
-    // static std::shared_ptr<CmdClientStub> create_stub(std::string ip_addr, int port) = 0;
     virtual std::map<uint32_t, MsgCallBack>& get_cb_map() = 0;
 
-    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg) = 0;
+    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t buf, void* cb_arg) = 0;
 protected:
     CmdClientStub() {}
     ~CmdClientStub() {}
-    // std::queue<MsgCallBack> msg_cb_q_;
     std::map<uint32_t, MsgCallBack> msg_cb_map_;
  
 }; // class CommandStub 
