@@ -84,11 +84,7 @@ int RdmaWorker::init(){
         if(!srq){
             return 1;
         }
-        if(mct->config->rdma_conn_version == 1){
-            ib.post_chunks_to_srq(ib.get_rx_queue_len(), srq);
-        }else if(mct->config->rdma_conn_version == 2){
-            post_rdma_recv_wr_to_srq(ib.get_rx_queue_len());
-        }
+        post_rdma_recv_wr_to_srq(ib.get_rx_queue_len());
     }
 
     return 0;
@@ -165,141 +161,56 @@ void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
     std::set<RdmaConnection *> to_wake_conns;
     auto tx_queue_len = manager->get_ib().get_tx_queue_len();
 
-    if(mct->config->rdma_conn_version == 2){
-        for(int i = 0;i < n; ++i){
-            ibv_wc* response = &cqe[i];
+    for(int i = 0;i < n; ++i){
+         ibv_wc* response = &cqe[i];
 
-            auto conn = get_rdma_conn(response->qp_num);
-            assert(conn);
-            ib::QueuePair *qp = conn->get_qp();
-            if(qp){
-                if(qp->get_tx_wr()){
-                    //wakeup conn after dec_tx_wr;
-                    to_wake_conns.insert(conn);
+         auto conn = get_rdma_conn(response->qp_num);
+         assert(conn);
+         ib::QueuePair *qp = conn->get_qp();
+         if(qp){
+           if(qp->get_tx_wr()){
+                 //wakeup conn after dec_tx_wr;
+                 to_wake_conns.insert(conn);
                 }
                 qp->dec_tx_wr(1);
-            }
+         }
 
-            ML(mct, debug, "QP: {}, wr_id: {:x}, imm_data:{} {} {}", 
-                    response->qp_num, response->wr_id, 
-                    (response->wc_flags & IBV_WC_WITH_IMM)?response->imm_data:0,
-                    manager->get_ib().wc_opcode_string(response->opcode),
-                    manager->get_ib().wc_status_to_string(response->status));
+         ML(mct, debug, "QP: {}, wr_id: {:x}, imm_data:{} {} {}", 
+                 response->qp_num, response->wr_id, 
+                 (response->wc_flags & IBV_WC_WITH_IMM)?response->imm_data:0,
+                 manager->get_ib().wc_opcode_string(response->opcode),
+                 manager->get_ib().wc_status_to_string(response->status));
 
-            RdmaSendWr *wr = reinterpret_cast<RdmaSendWr *>(response->wr_id);
-            wr->get_ibv_send_wr()->next = nullptr;
-            wr->on_send_done(cqe[i]);
+         RdmaSendWr *wr = reinterpret_cast<RdmaSendWr *>(response->wr_id);
+         wr->get_ibv_send_wr()->next = nullptr;
+         wr->on_send_done(cqe[i]);
             
 
-            if (response->status != IBV_WC_SUCCESS) {
-                if (response->status == IBV_WC_RETRY_EXC_ERR) {
-                    ML(mct, error, "Connection between server and client not"
-                                    " working. Disconnect this now");
-                } else if (response->status == IBV_WC_WR_FLUSH_ERR) {
-                    ML(mct, error, "Work Request Flushed Error: this connection's "
-                        "qp={} should be down while this WR={:x} still in flight.",
-                        response->qp_num, response->wr_id);
-                } else {
-                    ML(mct, error, "send work request returned error for "
-                        "buffer({}) status({}): {}",
-                        (void *)response->wr_id, response->status,
-                        manager->get_ib().wc_status_to_string(response->status));
-                }
-
-                ML(mct, info, "qp state: {}", conn->get_qp_state());
-                conn->fault();
-            }
-        }
-        for(RdmaConnection *conn : to_wake_conns){
-            if(conn->is_error() || conn->is_closed()) continue;
-            conn->post_send(nullptr);
-        }
-        return;
-    }
-
-    for (int i = 0; i < n; ++i) {
-        ibv_wc* response = &cqe[i];
-
-        auto conn = get_rdma_conn(response->qp_num);
-        assert(conn);
-        ib::QueuePair *qp = conn->get_qp();
-        if(qp){
-            if(qp->get_tx_wr()){
-                //wakeup conn after dec_tx_wr;
-                to_wake_conns.insert(conn);
-            }
-            if(is_sel_sig_wrid(response->wr_id)){
-                qp->dec_tx_wr(num_from_sel_sig_wrid(response->wr_id));
-                ML(mct, info, "dec {}", num_from_sel_sig_wrid(response->wr_id));
-            }else{
-                qp->dec_tx_wr(1);
-            }
-        }
-
-        //ignore rdma_write by post_imm_data().
-        if(response->wr_id != 0 && !is_sel_sig_wrid(response->wr_id)
-            && (response->opcode == IBV_WC_RDMA_READ
-                || response->opcode == IBV_WC_RDMA_WRITE)){
-            handle_rdma_rw_cqe(*response, conn);
-            continue;
-        }
-        
-        Chunk* chunk = nullptr;
-        if(!is_sel_sig_wrid(response->wr_id)){
-            chunk = reinterpret_cast<Chunk *>(response->wr_id);
-        }
-        ML(mct, info, "QP: {}, addr: {:p}, imm_data:{} {} {}", response->qp_num, 
-                    (void *)chunk, 
-                    (response->wc_flags & IBV_WC_WITH_IMM)?response->imm_data:0,
-                    manager->get_ib().wc_opcode_string(response->opcode),
-                    manager->get_ib().wc_status_to_string(response->status));
-
-        if (response->status != IBV_WC_SUCCESS) {
+         if (response->status != IBV_WC_SUCCESS) {
             if (response->status == IBV_WC_RETRY_EXC_ERR) {
-                ML(mct, error, "Connection between server and client not"
+                 ML(mct, error, "Connection between server and client not"
                                 " working. Disconnect this now");
             } else if (response->status == IBV_WC_WR_FLUSH_ERR) {
                 ML(mct, error, "Work Request Flushed Error: this connection's "
-                    "qp={} should be down while this WR={:x} still in flight.",
-                    response->qp_num, response->wr_id);
+                     "qp={} should be down while this WR={:x} still in flight.",
+                     response->qp_num, response->wr_id);
             } else {
                 ML(mct, error, "send work request returned error for "
-                    "buffer({}) status({}): {}",
-                    (void *)response->wr_id, response->status,
-                    manager->get_ib().wc_status_to_string(response->status));
+                     "buffer({}) status({}): {}",
+                     (void *)response->wr_id, response->status,
+                     manager->get_ib().wc_status_to_string(response->status));
             }
 
             ML(mct, info, "qp state: {}", conn->get_qp_state());
             conn->fault();
         }
-
-        //TX completion may come either from regular send message or from 'fin'
-        // message or from imm_data send. 
-        //In the case of 'fin' wr_id points to the QueuePair.
-        //In the case of imm_data send, wr_id is 0 or it has a magic prefix.
-        //In the case of regular send message, wr_id is the tx_chunks pointer.
-        if(response->wr_id == 0 || is_sel_sig_wrid(response->wr_id)){
-            //ignore.
-        }else if(reinterpret_cast<ib::QueuePair*>(response->wr_id) == qp){
-            ML(mct, debug, "sending of the disconnect msg completed");
-        }else {
-            tx_chunks.push_back(chunk);
-        }
-    }
-
-    for(RdmaConnection *conn : to_wake_conns){
+     }
+     for(RdmaConnection *conn : to_wake_conns){
         if(conn->is_error() || conn->is_closed()) continue;
-        conn->send_msg(nullptr);
-    }
+        conn->post_send(nullptr);
+     }
 
-    // owner->post_work([to_wake_conns, this](){
-    //     ML(this->mct, trace, "in handle_tx_cqe()");
-    //     for(RdmaConnection *conn : to_wake_conns){
-    //         conn->send_msg(nullptr);
-    //     }
-    // });
-
-    memory_manager->release_buffers(tx_chunks);
+     return;
 }
 
 void RdmaWorker::handle_rdma_rw_cqe(ibv_wc &wc, RdmaConnection *conn){
@@ -425,119 +336,68 @@ inline int RdmaWorker::handle_rx_msg(ibv_wc *cqe, RdmaConnection *conn){
 }
 
 void RdmaWorker::handle_rx_cqe(ibv_wc *cqe, int n){
-    if(mct->config->rdma_conn_version == 2){
-        std::map<RdmaConnection *, uint32_t> polled;
-        for (int i = 0; i < n; ++i) {
-            ibv_wc* response = &cqe[i];
-            ML(mct, debug, "QP: {} len: {}, opcode: {}, wc_flags:{},"
-                    " wr_id: {:x} {}", 
-                    response->qp_num, response->byte_len, 
-                    ib::Infiniband::wc_opcode_string(response->opcode), 
-                    response->wc_flags, response->wr_id,
-                    ib::Infiniband::wc_status_to_string(response->status));
-            auto conn = get_rdma_conn(response->qp_num);
-
-            if(polled.count(conn) > 0){
-                ++polled[conn];
-            }else{
-                polled[conn] = 1;
-            }
-
-            RdmaRecvWr *wr = reinterpret_cast<RdmaRecvWr *>(response->wr_id);
-            wr->get_ibv_recv_wr()->next = nullptr;
-            //Got 0 byte msg, means close the conn.
-            if(response->status == IBV_WC_SUCCESS
-                && response->opcode == IBV_WC_RECV
-                && response->byte_len == 0
-                && !(response->wc_flags & IBV_WC_WITH_IMM)){
-                conn->close_msg_arrive();
-            }else if(!handle_rx_msg(response, conn)){
-                //not msg module msg.
-                wr->on_recv_done(conn, cqe[i]);
-            }
-            
-
-            if (response->status != IBV_WC_SUCCESS
-                && response->status != IBV_WC_WR_FLUSH_ERR){
-                //Todo 
-                //Not distinguish the error type here.
-                //No need to close the conn for some error types.
-                //But here always close.
-                ML(mct, error, "work request returned error for wr_id({:x}) "
-                                "status({}:{})", response->wr_id, 
-                                response->status,
-                        manager->get_ib().wc_status_to_string(response->status));
-                if (conn)
-                    conn->fault();
-            }
-
-            
-        }
-
-        if(!srq){
-            std::vector<RdmaRecvWr *> recv_wrs;
-            int rn = mct->manager->get_msger_cb()->get_recv_wrs(n, recv_wrs);
-            assert(rn == n);
-            uint32_t wrs_left = rn;
-            for(auto &e : polled){
-                assert(wrs_left > e.second);
-                uint32_t begin = wrs_left - e.second;
-                std::vector<RdmaRecvWr *> tmp_wrs(recv_wrs.begin()+begin, 
-                                            recv_wrs.begin()+begin+e.second);
-                e.first->post_recvs(tmp_wrs);
-                wrs_left -= e.second;
-            }
-        }
-       
-        return;
-    }
-    std::map<RdmaConnection *, std::list<ibv_wc>> polled;
-    for (int i = 0; i < n; ++i) {
-        ibv_wc* response = &cqe[i];
-        Chunk* chunk = reinterpret_cast<Chunk *>(response->wr_id);
-        ML(mct, info, "QP: {} len: {}, opcode: {}, wc_flags:{}, addr: {:p} {}", 
-                    response->qp_num, response->byte_len, 
-                    ib::Infiniband::wc_opcode_string(response->opcode), 
-                    response->wc_flags, (void *)chunk,
-                    ib::Infiniband::wc_status_to_string(response->status));
-
-        assert(response->opcode & IBV_WC_RECV);
-
+     std::map<RdmaConnection *, uint32_t> polled;
+     for (int i = 0; i < n; ++i) {
+         ibv_wc* response = &cqe[i];
+         ML(mct, debug, "QP: {} len: {}, opcode: {}, wc_flags:{},"
+                " wr_id: {:x} {}", 
+                 response->qp_num, response->byte_len, 
+                 ib::Infiniband::wc_opcode_string(response->opcode),  
+                 response->wc_flags, response->wr_id,
+                ib::Infiniband::wc_status_to_string(response->status));
         auto conn = get_rdma_conn(response->qp_num);
 
-        if (response->status == IBV_WC_SUCCESS) {
-            if (!conn) {
-                ML(mct, info, "RdmaConnection with qpn {} may be dead. "
-                                "Return rx buffer {:p} to MemoryManager.",
-                                    response->qp_num, (void *)chunk);
-                memory_manager->release_buffer(chunk);
-            } else {
-                polled[conn].push_back(*response);
-            }
-        }else if(response->status == IBV_WC_WR_FLUSH_ERR){
-            //QP transitioned into Error State. Release all rx chunks.
-            memory_manager->release_buffer(chunk);
+        if(polled.count(conn) > 0){
+             ++polled[conn];
         }else{
-            //Todo 
-            //Not distinguish the error type here.
-            //No need to close the conn for some error types.
-            //But here always close.
-            ML(mct, error, "work request returned error for buffer({:p}) "
-                            "status({}:{})", (void *)chunk, response->status,
-                    manager->get_ib().wc_status_to_string(response->status));
-            if (conn)
-                conn->fault();
-
-            memory_manager->release_buffer(chunk);
+             polled[conn] = 1; 
         }
-    }
-    for (auto &i : polled){
-        i.first->pass_wc(i.second);
-        i.first->recv_data();
-        // i.first->read_cb();
-        // i.first->recv_notify();
+
+        RdmaRecvWr *wr = reinterpret_cast<RdmaRecvWr *>(response->wr_id);
+        wr->get_ibv_recv_wr()->next = nullptr;
+        //Got 0 byte msg, means close the conn.
+        if(response->status == IBV_WC_SUCCESS
+             && response->opcode == IBV_WC_RECV
+             && response->byte_len == 0
+             && !(response->wc_flags & IBV_WC_WITH_IMM)){
+            conn->close_msg_arrive();
+        }else if(!handle_rx_msg(response, conn)){
+             //not msg module msg.
+             wr->on_recv_done(conn, cqe[i]);
+        }
+            
+
+         if (response->status != IBV_WC_SUCCESS
+             && response->status != IBV_WC_WR_FLUSH_ERR){
+             //Todo 
+             //Not distinguish the error type here.
+             //No need to close the conn for some error types.
+             //But here always close.
+             ML(mct, error, "work request returned error for wr_id({:x}) "
+                            "status({}:{})", response->wr_id, 
+                             response->status,
+                     manager->get_ib().wc_status_to_string(response->status));
+            if (conn)
+                 conn->fault();
+         }   
     }
 
+     if(!srq){
+         std::vector<RdmaRecvWr *> recv_wrs;
+         int rn = mct->manager->get_msger_cb()->get_recv_wrs(n, recv_wrs);
+         assert(rn == n);
+         uint32_t wrs_left = rn;
+         for(auto &e : polled){
+           assert(wrs_left > e.second);
+           uint32_t begin = wrs_left - e.second;
+           std::vector<RdmaRecvWr *> tmp_wrs(recv_wrs.begin()+begin, 
+                                         recv_wrs.begin()+begin+e.second);
+           e.first->post_recvs(tmp_wrs);
+           wrs_left -= e.second;
+        }
+     }
+       
+     return;
 }
 
 int RdmaWorker::process_rx_cq_dry_run(){
@@ -567,52 +427,45 @@ int RdmaWorker::process_rx_cq(ibv_wc *wc, int max_cqes){
     int rx_ret = rx_cq->poll_cq(max_cqes, wc);
     if(rx_ret > 0){
         ML(mct, info, "rx completion queue got {} responses.", rx_ret);
-        if(mct->config->rdma_conn_version == 1){
-            if(srq){
-                srq_buffer_backlog = srq_buffer_backlog + rx_ret - 
-                            post_chunks_to_rq(srq_buffer_backlog + rx_ret);
-            }
-        }else if(mct->config->rdma_conn_version == 2){
-            if(srq){
-                uint32_t i;
-                for(i = 0;i < rx_ret;++i){
-                    RdmaRecvWr *wr = 
-                                reinterpret_cast<RdmaRecvWr *>(wc[i].wr_id);
-                    if(inflight_recv_wrs.empty() 
-                        || inflight_recv_wrs.front() != wr){
-                        uint32_t it = 0;
-                        bool found = false;
-                        while(it < inflight_recv_wrs.size()){
-                            if(inflight_recv_wrs[it] == wr){
-                                ML(mct, warn, "wr's index is {}/{}, expect 0.", 
-                                                it, inflight_recv_wrs.size());
-                                inflight_recv_wrs.erase(
-                                            inflight_recv_wrs.begin() + it);
-                                found = true;
-                                break;
-                            }
-                            ++it;
-                        }
-                        if(!found){
-                            ML(mct, error, "wr not in inflight_recv_wrs!");
-                        }
-                    }else{
-                        inflight_recv_wrs.pop_front();
-                    }
-                }
+        if(srq){
+        uint32_t i;
+        for(i = 0;i < rx_ret;++i){
+            RdmaRecvWr *wr = 
+                         reinterpret_cast<RdmaRecvWr *>(wc[i].wr_id);
+            if(inflight_recv_wrs.empty() 
+               || inflight_recv_wrs.front() != wr){
+                  uint32_t it = 0;
+                  bool found = false;
+                  while(it < inflight_recv_wrs.size()){
+                       if(inflight_recv_wrs[it] == wr){
+                         ML(mct, warn, "wr's index is {}/{}, expect 0.", 
+                                         it, inflight_recv_wrs.size());
+                         inflight_recv_wrs.erase(
+                                         inflight_recv_wrs.begin() + it);
+                         found = true;
+                         break;
+                       }
+                       ++it;
+                  }
+                  if(!found){
+                      ML(mct, error, "wr not in inflight_recv_wrs!");
+                  }
+             }else{
+                 inflight_recv_wrs.pop_front();
+                  }
+       }
 
-                uint32_t rx_queue_len = 
-                                    get_manager()->get_ib().get_rx_queue_len();
-                assert(rx_queue_len >= inflight_recv_wrs.size());
-                post_rdma_recv_wr_to_srq(
-                                    rx_queue_len - inflight_recv_wrs.size());
+       uint32_t rx_queue_len = 
+                           get_manager()->get_ib().get_rx_queue_len();
+       assert(rx_queue_len >= inflight_recv_wrs.size());
+       post_rdma_recv_wr_to_srq(
+                           rx_queue_len - inflight_recv_wrs.size());
                 
-            }
-        }
+       }
         
-        //if don't have srq, reuse rx buffers after RdmaConn recv_data().
-        handle_rx_cqe(wc, rx_ret);
-        return rx_ret;
+       //if don't have srq, reuse rx buffers after RdmaConn recv_data().
+       handle_rx_cqe(wc, rx_ret);
+       return rx_ret;
     }
 
     //here may be error or poll no cqe.
@@ -691,7 +544,7 @@ int RdmaWorker::post_chunks_to_rq(int num, ibv_qp *qp){
 }
 
 int RdmaWorker::post_rdma_recv_wr_to_srq(std::vector<RdmaRecvWr *> &wrs){
-    if(!srq || wrs.empty() || mct->config->rdma_conn_version != 2 ) return -1;
+    if(!srq || wrs.empty()) return -1;
     uint32_t i = 0;
     while(i + 1 < wrs.size()){
         assert(wrs[i] && wrs[i]->get_ibv_recv_wr());
@@ -709,7 +562,7 @@ int RdmaWorker::post_rdma_recv_wr_to_srq(std::vector<RdmaRecvWr *> &wrs){
 }
 
 int RdmaWorker::post_rdma_recv_wr_to_srq(int n){
-    if(!srq || n == 0 || mct->config->rdma_conn_version != 2 ) return -1;
+    if(!srq || n == 0) return -1;
     std::vector<RdmaRecvWr *> wrs;
     int rn = mct->manager->get_msger_cb()->get_recv_wrs(n, wrs);
     if(rn == 0) return 0;

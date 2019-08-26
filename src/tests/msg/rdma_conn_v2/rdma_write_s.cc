@@ -36,8 +36,6 @@ int main(){
 
     assert(!mct->load_config());
 
-    mct->config->set_rdma_conn_version("2");
-
     auto msger = new RwMsger(mct, true);
 
     mct->clear_done_cb = msg_clear_done_cb;
