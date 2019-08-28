@@ -138,27 +138,7 @@ RdmaConnection *RdmaConnection::create(MsgContext *mct, RdmaWorker *w,
     my_msg.gid = ib.get_gid();
 
     w->reg_rdma_conn(my_msg.qpn, conn);
-    if(!qp->has_srq() && mct->config->rdma_conn_version != 2){
-        auto required_rx_len = ib.get_rx_queue_len();
-        auto actual_posted = w->post_chunks_to_rq(required_rx_len, 
-                                                    qp->get_qp());
-        if(actual_posted < required_rx_len){
-            if(actual_posted > 0){
-                ML(mct, warn, "required rx_buffers: {}, acutal get: {}",
-                                        required_rx_len, actual_posted);
-                conn->inflight_rx_buffers += actual_posted;
-            }else{
-                ML(mct, error, "!!! can't post rx buffers (no free buffers). "
-                    "Create RdmaConn failed! "
-                    "Please adjust buffer_limit and rx_queue_len, "
-                    "or use more srq");
-                conn->put();
-                return nullptr;
-            }
-            
-        }
-    }
-
+     
     qp->user_ctx = conn;
 
     return conn;
@@ -167,13 +147,11 @@ RdmaConnection *RdmaConnection::create(MsgContext *mct, RdmaWorker *w,
 RdmaConnection::~RdmaConnection(){
     MLI(mct, info, "status: {}", status_str(status));
 
-    if(mct->config->rdma_conn_version == 2){
-        while(!pending_send_wrs.empty()){
-            RdmaSendWr *wr = pending_send_wrs.front();
-            wr->on_send_cancelled(false);
-            pending_send_wrs.pop_front();
-        }
-    }
+     while(!pending_send_wrs.empty()){
+         RdmaSendWr *wr = pending_send_wrs.front();
+         wr->on_send_cancelled(false);
+         pending_send_wrs.pop_front();
+     }
 
     if(qp){
         delete qp;
@@ -345,32 +323,13 @@ ssize_t RdmaConnection::send_msg(Msg *msg, bool more){
         return -1;
     }
 
-    if(mct->config->rdma_conn_version == 2){
-        if(msg->get_data_len() > FLAME_MSG_CMD_RESERVED_LEN) return -1;
+    if(msg->get_data_len() > FLAME_MSG_CMD_RESERVED_LEN) return -1;
 
-        auto send_wr = new InternalMsgSendWr(msg);
-        assert(send_wr);
-        post_send(send_wr, more);
-        return 0;
-    }
-
-    if(msg){
-        if(msg->total_bytes() > Stack::get_rdma_stack()->max_msg_size()){
-            ML(mct, error, "Msg size too big {}B > {}B, send failed! "
-                "Change rdma_buffer_size or rdma_send_queue_len.", 
-                msg->total_bytes(), Stack::get_rdma_stack()->max_msg_size());
-            return -1;
-        }
-        msg->get();
-        MutexLocker l(send_mutex);
-        msg_list.push_back(msg);
-    }
-
-    if(more) return 0;
-
-    submit(false); //submit all rw_works and msgs.
-    
+    auto send_wr = new InternalMsgSendWr(msg);
+    assert(send_wr);
+    post_send(send_wr, more);
     return 0;
+
 }
 
 ssize_t RdmaConnection::send_msgs(std::list<Msg *> &msgs){
@@ -379,38 +338,14 @@ ssize_t RdmaConnection::send_msgs(std::list<Msg *> &msgs){
         return -1;
     }
 
-    if(mct->config->rdma_conn_version == 2){
-        for(auto msg : msgs){
-            if(msg->get_data_len() > FLAME_MSG_CMD_RESERVED_LEN) return -1;
-
-            auto send_wr = new InternalMsgSendWr(msg);
-            assert(send_wr);
-            post_send(send_wr, true);
-        }
-        post_send(nullptr, false);
-        return 0;
-    }
-
-    auto max_msg_size = Stack::get_rdma_stack()->max_msg_size();
     for(auto msg : msgs){
-        if(msg->total_bytes() >max_msg_size){
-            ML(mct, error, "Msg size too big {}B > {}B, send failed! "
-                "Change rdma_buffer_size or rdma_send_queue_len.",  
-                                    msg->total_bytes(), max_msg_size);
-            return -1;
-        }
-    }
-    for(auto msg : msgs){
-        msg->get();
-    }
+         if(msg->get_data_len() > FLAME_MSG_CMD_RESERVED_LEN) return -1;
 
-    {
-        MutexLocker l(send_mutex);
-        msg_list.splice(msg_list.end(), msgs);
+        auto send_wr = new InternalMsgSendWr(msg);
+        assert(send_wr);
+        post_send(send_wr, true);
     }
-
-    submit(false); //submit all rw_works and msgs.
-    
+    post_send(nullptr, false);
     return 0;
 }
 
@@ -677,11 +612,8 @@ int RdmaConnection::activate(){
     active = true;
     status = RdmaStatus::CAN_WRITE;
     
-    if(mct->config->rdma_conn_version == 1){
-        this->submit(false); // trigger submit
-    }else if(mct->config->rdma_conn_version == 2){
-        this->post_send(nullptr);
-    }
+    this->post_send(nullptr);
+
     return 0;
 }
 
@@ -1023,17 +955,11 @@ void RdmaConnection::close(){
         && status == RdmaStatus::ERROR){
         return;
     }
-    if(mct->config->rdma_conn_version == 2){
-        if(status == RdmaStatus::CAN_WRITE){
-            fin_v2(false);
-        }
-        return;
-    }
 
     if(status == RdmaStatus::CAN_WRITE){
-        fin();
+        fin_v2(false);
     }
-    do_close();
+    return;
 }
 
 void RdmaConnection::fault(){

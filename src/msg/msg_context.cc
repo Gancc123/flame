@@ -51,8 +51,6 @@ int MsgContext::init(MsgerCallback *msger_cb){
         return -1;
     }
 
-    ML(this, info, "RdmaConnection Versoin: {}", config->rdma_conn_version);
-
 #ifdef HAVE_SPDK
     if(config->msg_worker_type == msg_worker_type_t::SPDK){
         bind_core = spdk_env_get_current_core();

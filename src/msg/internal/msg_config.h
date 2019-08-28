@@ -20,7 +20,6 @@
 #define FLAME_MSGER_ID_D              ""
 #define FLAME_NODE_LISTEN_PORTS_D     ""
 #define FLAME_RDMA_ENABLE_D           "false"
-#define FLAME_RDMA_CONN_VERSION_D     "1"
 #define FLAME_RDMA_DEVICE_NAME_D      ""
 #define FLAME_RDMA_PORT_NUM_D         ""
 #define FLAME_RDMA_BUFFER_NUM_D       ""
@@ -133,13 +132,6 @@ public:
     bool rdma_enable;
     int set_rdma_enable(const std::string &v);
 
-    /**
-     * RDMA Connection version
-     * @cfg: rdma_conn_version
-     */
-    int rdma_conn_version;
-    int set_rdma_conn_version(const std::string &v);
-    
     /**
      * RDMA device name
      * @cfg: rdma_device_name

@@ -63,8 +63,6 @@ CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_modul
         assert(false);
     }
     int r;
-    r = msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
-    assert(!r);
     r = msg_context_->config->set_msg_worker_type("SPDK");
     assert(!r);
     msg_context_->init(client_msger_);//* set msg_client_recv_func
@@ -173,8 +171,6 @@ CmdServerStubImpl::CmdServerStubImpl(FlameContext* flame_context){
     server_msger_ = new Msger(msg_context_, nullptr, true);
     assert(!msg_context_->load_config());
     int r;
-    r = msg_context_->config->set_rdma_conn_version("2"); //**这一步很重要，转换成msg_v2
-    assert(!r);
     r = msg_context_->config->set_msg_worker_type("SPDK");
     assert(!r);
     msg_context_->init(server_msger_);//* set msg_server_recv_func
