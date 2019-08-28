@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 14:57:01
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-23 19:46:53
+ */
 #include "libflame/libchunk/libchunk.h"
 
 #include "include/csdc.h"
@@ -37,9 +45,6 @@ cmd_ma_t MemoryAreaImpl::get() const {
     return ma_;
 }   
 
-
-
-//-------------------------------------CmdClientStubImpl->CmdClientStub-------------------------------------------------//
 /**
  * @name: CmdClientStubImpl
  * @describtions: CmdClientStubImpl构造函数，通过FlameContext*构造MsgContext*
@@ -47,7 +52,6 @@ cmd_ma_t MemoryAreaImpl::get() const {
  *          msg_module_cb       clear_done_cb       在消息模块销毁后调用的函数
  * @return: \
  */
-
 int CmdClientStubImpl::ring = 0;
 CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_module_cb clear_done_cb)
     :  CmdClientStub(){
@@ -66,6 +70,11 @@ CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_modul
     msg_context_->init(client_msger_);//* set msg_client_recv_func
 }
 
+uint64_t CmdClientStubImpl::_get_io_addr(uint64_t ip, uint16_t port){
+    uint64_t io_addr = ip << 16 | port;
+    return io_addr;
+}
+
 /**
  * @name: set_session
  * @describtions: CmdClientStubImpl设置session_
@@ -75,7 +84,7 @@ CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_modul
  */
 int CmdClientStubImpl::set_session(std::string ip_addr, int port){
     uint64_t ip = string_to_ip(ip_addr);
-    int64_t io_addr = ip << 16 | (uint32_t)port;
+    int64_t io_addr = _get_io_addr(ip, (uint16_t)port);
     if(session_.count(io_addr) == 1)
         return 0;
     /**此处的NodeAddr仅作为msger_id_t唯一标识的参数，并不是实际通信地址的填充**/
@@ -84,12 +93,12 @@ int CmdClientStubImpl::set_session(std::string ip_addr, int port){
     addr->set_port(port);
     msg::msger_id_t msger_id = msg::msger_id_from_msg_node_addr(addr);
     addr->put();
-    msg::Session* single_session = msg_context_->manager->get_session(msger_id);
-    /*此处填充通信地址*/
+    /*此处填充通信地址,与msger_id类似*/
     msg::NodeAddr* rdma_addr = new msg::NodeAddr(msg_context_);
     rdma_addr->set_ttype(NODE_ADDR_TTYPE_RDMA);
     rdma_addr->ip_from_string(ip_addr);
     rdma_addr->set_port(port);
+    msg::Session* single_session = msg_context_->manager->get_session(msger_id);
     single_session->set_listen_addr(rdma_addr, msg::msg_ttype_t::RDMA);
     rdma_addr->put();
     session_[io_addr] = single_session; 
@@ -120,36 +129,43 @@ RdmaWorkRequest* CmdClientStubImpl::get_request(){
     return req;
 }
 
+void CmdClientStubImpl::_prepare_inline(RdmaWorkRequest& req, uint64_t bufaddr, uint32_t data_len){
+    Buffer inline_data_buf = req.get_data_buf();
+    char* inline_data  = (char*)inline_data_buf.addr();
+    strncpy(inline_data, (char*)bufaddr, data_len);
+    (req.get_ibv_send_wr())->num_sge = 2;
+}
+
+uint32_t CmdClientStubImpl::_get_cq(RdmaWorkRequest& req){
+    return ((cmd_t *)req.command)->hdr.cqg << 16 | ((cmd_t *)req.command)->hdr.cqn;
+}
 
 /**
  * @name: submit 
  * @describtions: libflame端提交请求到CSD端 
- * @param   Conmmand&           cmd         准备发送的命令
- *          cmd_cb_fn_t*        cb_fn       命令得到回复后的回调函数
- *          void*               cb_arg      回调函数的参数
+ * @param   
  * @return: 
  */
-int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, void* cb_arg){
+int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t bufaddr, void* cb_arg){
     ((cmd_t *)req.command)->hdr.cqn = ((ring++)%256);
     msg::Connection* conn = session_[io_addr]->get_conn(msg::msg_ttype_t::RDMA);
     msg::RdmaConnection* rdma_conn = msg::RdmaStack::rdma_conn_cast(conn);
     if(((cmd_t *)req.command)->hdr.cn.seq == CMD_CHK_IO_WRITE){
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd((cmd_t *)req.command);
-        FlameContext* fct = FlameContext::get_context();
         if(write_cmd->get_inline_data_len() > 0){
-            (req.get_ibv_send_wr())->num_sge = 2;
+            uint32_t data_len = write_cmd->get_ma_len();
+            _prepare_inline(req, bufaddr, data_len);
         }
     }
-    rdma_conn->post_send(&req);
     struct MsgCallBack msg_cb;
-    msg_cb.cb_fn = cb_fn;
-    msg_cb.cb_arg = cb_arg;
-    uint32_t cq = ((cmd_t *)req.command)->hdr.cqg << 16 | ((cmd_t *)req.command)->hdr.cqn;
+    msg_cb.cb_fn    = cb_fn;
+    msg_cb.buf      = bufaddr;   //此处的bufaddr可能被inline过来的addr代替
+    msg_cb.cb_arg   = cb_arg;
+    uint32_t cq = _get_cq(req);
     msg_cb_map_.insert(std::map<uint32_t, MsgCallBack>::value_type (cq, msg_cb));
-    
+    rdma_conn->post_send(&req);
     return 0;
 }
-
 
 //-------------------------------------CmdServerStubImpl->CmdServerStub-------------------------------------------------//
 CmdServerStubImpl::CmdServerStubImpl(FlameContext* flame_context){
@@ -162,7 +178,6 @@ CmdServerStubImpl::CmdServerStubImpl(FlameContext* flame_context){
     r = msg_context_->config->set_msg_worker_type("SPDK");
     assert(!r);
     msg_context_->init(server_msger_);//* set msg_server_recv_func
-    
 }
 
 } // namespace flame

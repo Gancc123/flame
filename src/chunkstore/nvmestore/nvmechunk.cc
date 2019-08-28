@@ -353,7 +353,8 @@ void NvmeChunk::chunk_io_cb(void *cb_arg, int bserrno) {
             nv_channel->curr_io_ops_sub(1);
             nvmestore->get_read_channels()->num_io_ops_add(1);
 
-            std::cout << "read completed.." << std::endl;
+            chunk->fct_->log()->ldebug("read completed..");
+
             struct chunk_read_arg *crarg = dynamic_cast<chunk_read_arg *>(oparg);
             if(crarg->rd_cb)
                 crarg->rd_cb(crarg->cb_arg);
@@ -373,7 +374,7 @@ void NvmeChunk::chunk_io_cb(void *cb_arg, int bserrno) {
             nv_channel->curr_io_ops_sub(1);
             nvmestore->get_read_channels()->num_io_ops_add(1);
             
-            std::cout << "write completed.." << std::endl;
+            chunk->fct_->log()->ldebug("write completed..");
 
             struct chunk_write_arg * cwarg = dynamic_cast<chunk_write_arg *>(oparg);
             if(cwarg->wr_cb)
@@ -400,8 +401,7 @@ void NvmeChunk::chunk_io_start(void *arg1, void *arg2) {
 
     int opcode = oparg->opcode;
 
-    std::cout << "curr_core = " << curr_core << std::endl;
-    chunk->fct_->log()->lerror("curr_core = %ld", curr_core);
+    chunk->fct_->log()->ldebug("curr_core = %ld", curr_core);
 
     switch(opcode) {
         case CHUNK_READ:
@@ -414,8 +414,8 @@ void NvmeChunk::chunk_io_start(void *arg1, void *arg2) {
             io_length = chunk->length_to_page(crarg->length);
             io_offset = chunk->offset_to_page(crarg->offset);
 
-            std::cout << "io_length = " << io_length << std::endl;
-            std::cout << "io_offset = " << io_offset << std::endl;
+            chunk->fct_->log()->ldebug("io_length = %ld", io_length);
+            chunk->fct_->log()->ldebug("io_offset = %ld", io_offset);
 
             spdk_blob_io_read(chunk->get_blob(), io_channel, crarg->buff, io_offset, io_length, chunk_io_cb, crarg);
         }
@@ -430,8 +430,8 @@ void NvmeChunk::chunk_io_start(void *arg1, void *arg2) {
             io_length = chunk->length_to_page(cwarg->length);
             io_offset = chunk->offset_to_page(cwarg->offset);
 
-            std::cout << "io_length = " << io_length << std::endl;
-            std::cout << "io_offset = " << io_offset << std::endl;
+            chunk->fct_->log()->ldebug("io_length = %ld", io_length);
+            chunk->fct_->log()->ldebug("io_offset = %ld", io_offset);
 
             spdk_blob_io_write(chunk->get_blob(), io_channel, cwarg->buff, io_offset, io_length, chunk_io_cb, cwarg);
         }
@@ -454,7 +454,7 @@ int NvmeChunk::read_async(void *buff, uint64_t off, uint64_t len, chunk_opt_cb_t
                                                         off, len, buff, cb, cb_arg);
 
     uint32_t target_core = this->get_target_core(READ_CHANNEL);
-    std::cout << "target_core = " << target_core << std::endl;
+    // std::cout << "target_core = " << target_core << std::endl;
     struct spdk_event *event = spdk_event_allocate(target_core, chunk_io_start, crarg, nullptr);
     spdk_event_call(event);
 
@@ -476,7 +476,7 @@ int NvmeChunk::write_async(void *buff, uint64_t off, uint64_t len, chunk_opt_cb_
                                                         off, len, buff, cb, cb_arg);
 
     uint32_t target_core = this->get_target_core(WRITE_CHANNEL);
-    std::cout << "target_core = " << target_core << std::endl;
+    // std::cout << "target_core = " << target_core << std::endl;
     struct spdk_event *event = spdk_event_allocate(target_core, chunk_io_start, cwarg, nullptr);
     spdk_event_call(event);
 

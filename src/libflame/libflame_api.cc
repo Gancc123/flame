@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-07-12 17:34:25
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 16:28:55
+ */
 #include "include/libflame_api.h"
 
 #include "common/context.h"
@@ -14,7 +22,7 @@
 using std::string;
 using std::vector;
 
-namespace{
+namespace flame{
 
 int write_log (FILE* pFile, const char *format, ...) {
     va_list arg;
@@ -75,55 +83,54 @@ extern "C" void set_node_name(const char* node_name){
     return ;
 }
 
-/* FlameStub_API*/
-extern "C" void flame_stub_connect_mgr(const char* ip){
-    FlameStub* flame_stub;
+/* FlameHandlers_API*/
+extern "C" void flame_handlers_connect_mgr(const char* ip){
+    FlameHandlers* flame_handlers;
     std::string ip_s = ip;
-    flame_stub = FlameStub::connect(ip_s);//manager地址
+    flame_handlers = FlameHandlers::connect(ip_s);//manager地址
 
-    if (flame_stub == nullptr) {
+    if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");
         return ;
     }
 }
 
-extern "C" int flame_stub_open_volume(const char* volume_group, const char* volume, VolumeMeta_t* const volume_meta){
-    FlameStub* flame_stub;
-    std::string ip = "192.168.3.112:6677";
-    flame_stub = FlameStub::connect(ip);//manager地址
-    if (flame_stub == nullptr) {
+extern "C" int flame_handlers_open_volume(const char* volume_group_name, const char* volume_name){
+    FlameHandlers* flame_handlers;
+    if(FlameHandlers::g_flame_handlers == nullptr) return -1;
+    else flame_handlers = FlameHandlers::g_flame_handlers;
+    if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");
         return -1;
     }
+    uint64_t volume_id;
+    std::string vg_name(volume_group_name), name(volume_name);
+    int rc = 0;
+    rc = flame_handlers->vol_name_2_id(vg_name, name, volume_id);
+    if(rc == 0){ //* 证明之前缓存过
+        return 0;
+    }
     struct VolumeMeta meta = {0};
     Volume* res = new Volume(meta);
-    flame_stub->vol_open("vg1", "vol1", &res);
-    volume_meta->id = flame_stub->volume->get_meta().id;
-    strcpy(volume_meta->name, flame_stub->volume->get_meta().name.c_str());
-    strcpy(volume_meta->vg_name, flame_stub->volume->get_meta().vg_name.c_str());
-    volume_meta->size = flame_stub->volume->get_meta().size;
-    volume_meta->ctime = flame_stub->volume->get_meta().ctime;
-    volume_meta->chk_sz = flame_stub->volume->get_meta().chk_sz;
-    volume_meta->spolicy = flame_stub->volume->get_meta().spolicy;
-    std::map<uint64_t, ChunkAddr>::iterator iter;
-    std::map<uint64_t, ChunkAddr>* chunks = & (flame_stub->volume->get_meta().chunks_map);
-    int chunks_num = chunks->size(), i;
-    volume_meta->chunk_addr_pair = (ChunkAddrPair *)malloc(chunks_num * sizeof(ChunkAddrPair));
-    for(i = 0, iter = chunks->begin(); iter != chunks->end(); ++iter, ++i){
-        volume_meta->chunk_addr_pair[i].key = iter->first;
-        volume_meta->chunk_addr_pair[i].chunkaddr = { iter->second.chunk_id, iter->second.ip, iter->second.port};
+    rc = flame_handlers->vol_open(volume_group_name, volume_name, &res);
+    rc = flame_handlers->vol_name_2_id(vg_name, name, volume_id);
+    std::map<uint64_t, ChunkAddr>* chunks = & (flame_handlers->volumes[volume_id]->get_meta().chunks_map);
+    int chunks_num = chunks->size(), i = 0;
+    std::map<uint64_t, ChunkAddr>::iterator iter = chunks->begin();
+    for(; iter != chunks->end(); ++iter, ++i){
         std::string ip_s = ip32_to_string(iter->second.ip);
-        flame_stub->cmd_client_stub->set_session(ip_s, iter->second.port);
+        flame_handlers->cmd_client_stub->set_session(ip_s, iter->second.port);
     }
     return 0;
 }
 
 /* Buffer_API*/
-extern "C" int get_buffer_addr(BufferInfo_t* const buffer_info, void** buf){
+extern "C" int allocate_buffer(BufferInfo_t* const buffer_info, void** buf){
+    if(buffer_info->size <= 0) return -1;
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
-    Buffer* buffer = allocator->allocate_ptr(1 << 22); //4MB
+    Buffer* buffer = allocator->allocate_ptr(buffer_info->size);
     buffer_info->addr = (uint64_t)buffer->addr();
     buffer_info->size = buffer->size();
     buffer_info->type = buffer->type();
@@ -132,35 +139,33 @@ extern "C" int get_buffer_addr(BufferInfo_t* const buffer_info, void** buf){
 }
 
 /*IO_API */
-typedef void (*Callback)(void* arg1, void* arg2);
-
-extern "C" int flame_write(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg){
+extern "C" int flame_write(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
-    FlameStub* flame_stub;
+    FlameHandlers* flame_handlers;
     std::string ip = "192.168.3.112:6677";
-    flame_stub = FlameStub::connect(ip);//manager地址
-    if (flame_stub == nullptr) {
+    flame_handlers = FlameHandlers::connect(ip);//manager地址
+    if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");
         return -1;
     }
     //TODO  需要合适得加入回调
-    flame_stub->write(*buf, offset, len, nullptr, nullptr);
+    flame_handlers->write(volume_group, volume, *buf, offset, len, cb, cb_arg);
     return 0;
 }
 
-extern "C" int flame_read(void* buffer, const uint64_t offset, const uint64_t len, Callback cb, void* cb_arg){
+extern "C" int flame_read(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
-    FlameStub* flame_stub;
+    FlameHandlers* flame_handlers;
     std::string ip = "192.168.3.112:6677";
-    flame_stub = FlameStub::connect(ip);//manager地址
-    if (flame_stub == nullptr) {
+    flame_handlers = FlameHandlers::connect(ip);//manager地址
+    if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");
         return -1;
     }
     //TODO  需要合适得加入回调
-    flame_stub->read(*buf, offset, len, nullptr, nullptr);
+    flame_handlers->read(volume_group, volume, *buf, offset, len, cb, cb_arg);
     return 0;
 }
 

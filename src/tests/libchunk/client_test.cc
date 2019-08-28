@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:44
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-20 10:29:04
+ */
 #include <unistd.h>
 #include <cstdio>
 
@@ -20,14 +28,14 @@ using FlameContext = flame::FlameContext;
 #define CFG_PATH "flame_client.cfg"
 
 
-void cb_func(const Response& res, void* arg){
+void cb_func(const Response& res, uint64_t bufaddr, void* arg){
     char* mm = (char*)arg;
     std::cout << mm[0] << mm[1] << mm[2] << std::endl; 
     std::cout << "111" << std::endl;
     return ;
 }
 
-void cb_func2(const Response& res, void* arg){
+void cb_func2(const Response& res, uint64_t bufaddr, void* arg){
     std::cout << "222" << std::endl;
     return ;
 }
@@ -69,7 +77,7 @@ static void test_libchunk(void *arg1, void *arg2){
     MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write.addr(), (uint32_t)buf_write.size(), buf_write.rkey(), 1);
     cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
     ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 1048592, 0, 4096, *memory_write, 0); 
-    cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, &cb_func2, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
+    cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, &cb_func2, 0, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
 
     /* 无inline的读取chunk的操作 */
     RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
@@ -77,7 +85,7 @@ static void test_libchunk(void *arg1, void *arg2){
     MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read.addr(), (uint32_t)buf_read.size(), buf_read.rkey(), 1);
     cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
     ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 1048592, 0, 8192, *memory_read); 
-    cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, &cb_func, buf_read.addr());
+    cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, &cb_func, (uint64_t)buf_read.addr(), buf_read.addr());
 
     /* 带inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write_inline = cmd_client_stub->get_request();
@@ -88,13 +96,13 @@ static void test_libchunk(void *arg1, void *arg2){
     MemoryArea* memory_write_inline = new MemoryAreaImpl((uint64_t)buf_write_inline.addr(),\
                      (uint32_t)buf_write_inline.size(), buf_write_inline.rkey(), 1);
     ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 1048592, 0, 4096, *memory_write_inline, 1); 
-    cmd_client_stub->submit(*rdma_work_request_write_inline, peer_io_addr, &cb_func2, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+    cmd_client_stub->submit(*rdma_work_request_write_inline, peer_io_addr, &cb_func2, 0, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
 
     /* 带inline的读取chunk的操作 */
     RdmaWorkRequest* rdma_work_request_read_inline = cmd_client_stub->get_request();
     cmd_t* cmd_read_inline = (cmd_t *)rdma_work_request_read_inline->command;
     ChunkReadCmd* read_cmd_inline = new ChunkReadCmd(cmd_read_inline, 1048592, 0, 4096); 
-    cmd_client_stub->submit(*rdma_work_request_read_inline, peer_io_addr, &cb_func, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
+    cmd_client_stub->submit(*rdma_work_request_read_inline, peer_io_addr, &cb_func, 0, nullptr); //**这里第三个参数写nullptr但是在内部调用时因为时inline_read，会自动将参数定位到recv的rdma buffer上
 
 
     std::getchar();

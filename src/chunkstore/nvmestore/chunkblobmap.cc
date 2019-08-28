@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:06:40
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-23 15:24:10
+ */
 #include "chunkstore/nvmestore/chunkblobmap.h"
 
 #include <math.h>
@@ -226,6 +234,11 @@ void ChunkBlobMap::open_map_blob_cb(void *cb_arg, struct spdk_blob *blb, int bse
             struct load_map_arg *larg = dynamic_cast<struct load_map_arg *>(oparg);
             chunk_blob_map->set_blob(blb);
             struct spdk_io_channel *io_channel = nvmestore->get_meta_channel();
+            if(io_channel == nullptr){
+                io_channel = spdk_bs_alloc_io_channel(nvmestore->get_blobstore()); 
+                nvmestore->set_meta_channel(io_channel);
+                io_channel = nvmestore->get_meta_channel();
+            }  
             uint64_t length = 1;
             spdk_blob_io_read(chunk_blob_map->map_blob, io_channel, larg->buffer, 
                                 0, length, read_map_blob_cb, larg);

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:43
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-19 16:43:25
+ */
 /**
  * @file csdc.h
  * @author zhzane (zhzane@outlook.com)
@@ -14,6 +22,8 @@
 #include "include/cmd.h"
 #include "libflame/libchunk/log_libchunk.h"
 #include <memory.h>
+
+#define MAX_INLINE_SIZE 4096
 
 #ifdef __cplusplus
 extern "C" {
@@ -138,7 +148,7 @@ public:
         wr_->ma.key = ma.get_key();
         
 
-        if (force_inline && ma.is_dma() && ma.get_len() <= 4096) { // 内联数据传递，跟随request一起传输
+        if (force_inline && ma.is_dma() && ma.get_len() <= MAX_INLINE_SIZE) { // 内联数据传递，跟随request一起传输
             wr_->inline_data_len = len < ma.get_len() ? len : ma.get_len();
             inline_data = ma.get_addr();
         }

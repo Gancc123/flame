@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-13 09:20:19
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-23 11:15:07
+ */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
  * @brief: 消息模块接口定义
@@ -112,7 +120,7 @@ public:
      * @param Connection 连接实例
      * @param Session 连接所属的会话
      */
-    virtual void on_conn_declared(Connection *conn, Session *s) {};
+    virtual void on_conn_declared(Connection *conn, Session *s) {}
     
     /**
      * @brief 当连接接收到到消息时
@@ -120,7 +128,7 @@ public:
      * @param Connection 消息关联的连接
      * @param Msg 接收到的消息实例
      */
-    virtual void on_conn_recv(Connection *, Msg *) {};
+    virtual void on_conn_recv(Connection *, Msg *) {}
 
     /**
      * @brief 当RDMA ENV初始化完成时回调

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:02:43
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-23 16:37:48
+ */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 #define FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 
@@ -15,7 +23,6 @@ namespace flame {
 
 class RequestPool;
 class Msger;
-
 //----------------RdmaWorkRequest----------------------------//
 class RdmaWorkRequest : public msg::RdmaRecvWr, public msg::RdmaSendWr{
 public:
@@ -41,44 +48,36 @@ private:
     CmdService* service_;
     RdmaWorkRequest(msg::MsgContext *c, Msger *m)
     : msg_context_(c), msger_(m), status(FREE), conn(nullptr){}
+    static int allocate_send_buffer(RdmaWorkRequest* req);
+    static int prepare_send_recv(RdmaWorkRequest* req);
+    static int set_command(RdmaWorkRequest* req, void* addr);
+    uint32_t _get_cqgcqn();
+    bool _judge_seq_type(int type);
 public:
+    ~RdmaWorkRequest();
     Status status;
     msg::RdmaConnection *conn;
     void *command;
-
     static RdmaWorkRequest* create_request(msg::MsgContext *c, Msger *m);//创建默认的send/recv request，如果要write or read，则需要额外设置
-
-    // void transform_rw_request(); //根据command来进行转换
-
-    ~RdmaWorkRequest();
-
     inline virtual ibv_send_wr *get_ibv_send_wr() override{
         return &send_wr_;
     }
-
     inline virtual ibv_recv_wr *get_ibv_recv_wr() override{
         return &recv_wr_;
     }
-
-    inline virtual Buffer get_data_buf(){
+    inline virtual Buffer& get_data_buf(){
         return data_buf_;
     }
-
     virtual void on_send_done(ibv_wc &cqe) override;
-
     virtual void on_send_cancelled(bool err, int eno=0) override;
-
     virtual void on_recv_done(msg::RdmaConnection *conn, ibv_wc &cqe) override;
-
     virtual void on_recv_cancelled(bool err, int eno=0) override;
-
     void run();
 
     friend class ReadCmdService;
     friend class WriteCmdService;
 
 };//class RdmaWorkRequest
-
 
 //--------------------------RdmaWorkRequestPool-------------------------------------------------//
 class RdmaWorkRequestPool{
@@ -95,11 +94,8 @@ public:
     int alloc_reqs(int n, std::vector<RdmaWorkRequest *> &reqs);
     RdmaWorkRequest* alloc_req();
     void free_req(RdmaWorkRequest *req);
-
-    // int expand(int n);
     int purge(int n);
 };//class RdmaWorkRequestPool
-
 
 //--------------------------Msger在msg v2中几乎没什么用，回调已放到RdmaWorkRequest中-----------------------------------------------------//
 
@@ -111,23 +107,18 @@ class Msger : public msg::MsgerCallback{
 public:
     explicit Msger(msg::MsgContext *c, CmdClientStub* client_stub, bool s) 
     : msg_context_(c), pool_(c, this), is_server_(s) {
-        if(!is_server_){ //客户端
+        if(!is_server_ && client_stub != nullptr){ //客户端
             client_stub_ = client_stub;
         }
     };
 
     inline CmdClientStub* get_client_stub() const { return client_stub_; }
-    virtual void on_conn_declared(msg::Connection *conn, msg::Session *s) override;
-    virtual void on_conn_recv(msg::Connection *conn, msg::Msg *msg) override ;
     virtual int get_recv_wrs(int n, std::vector<msg::RdmaRecvWr *> &wrs) override;
     virtual void on_rdma_env_ready() override;
     
-
     RdmaWorkRequestPool &get_req_pool() { return pool_; }
     bool is_server() { return is_server_; }
 };//class Msger
-
 } //namespace flame
-
 
 #endif //FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-07-23 16:02:28
+ * @LastEditTime: 2019-08-20 15:48:53
  *
  * @copyright Copyright (c) 2019
  * 
@@ -30,21 +30,13 @@
 #include <vector>
 #include <iostream>
 
-#if __GNUC__ >= 4
-    #define FLAME_API __attribute__((visibility ("default")))
-#else
-    #define FLAME_API
-#endif
-
 namespace flame {
 
-typedef void (*libflame_callback)(const Response& res, void* arg1);
+typedef void (*libflame_callback)(uint64_t buf, void* context, int status);
 
 struct  Config {
     std::string mgr_addr;
-
-}; // class Config
-
+};
 
 //对单一chunk访问的结构
 struct ChunkOffLen {
@@ -115,79 +107,62 @@ public:
     int flush(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, libflame_callback cb, void* arg);
 
 private:
-    friend class FlameStub;
-    /*将对volume的逻辑访问位置转换成物理的每个chunk的访问地址*/
-    int vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOffLen>& chunk_positions);
+    friend class FlameHandlers;
+    int _vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOffLen>& chunk_positions);/*将对volume的逻辑访问位置转换成物理的每个chunk的访问地址*/
 
     struct VolumeMeta volume_meta_;
     
 }; // class Volume
 
-class FlameStub {
+class FlameHandlers {       //**FlameHandlers全局就一个g_flame_handlers，可以操纵多个volume **/
 public:
-    static FlameStub* g_flame_stub;
+    static FlameHandlers* g_flame_handlers;
     /**gRPC服务**/
-    // Connect API
-    static FlameStub* connect(const Config& cfg);
-    static FlameStub* connect(std::string& path);
-    // Disconnect API
+    static FlameHandlers* connect(const Config& cfg);
+    static FlameHandlers* connect(std::string& path);
     int disconnect();
-    // Cluster API
-    // return info of cluster by a argurment，现在暂时没管arg，默认返回所有集群信息
+    // TODO 现在暂时没管arg，默认返回所有集群信息
     int cluster_info(const std::string& arg, cluster_meta_t& res);
     // Group API
-    // create an group.
     int vg_create(const std::string& vg_name);
-    // list group. return an list of group name.
     int vg_list(std::vector<flame::volume_group_meta_t>& res);
-    // remove an group.
     int vg_remove(const std::string& vg_name);
     // Volume API
-    // create an volume.
     int vol_create(const std::string& vg_name, const std::string& vol_name, const VolumeAttr& attr);
-    // list volumes. return an list of volume name.
     int vol_list(const std::string& vg_name, std::vector<flame::volume_meta_t>& res);
-    // remove an volume.
     int vol_remove(const std::string& vg_name, const std::string& vol_name);
-    // read info of volume.
     int vol_meta(const std::string& vg_name, const std::string& vol_name, VolumeMeta& info);
-    // open a volume, and return the io context of volume.
     int vol_open(const std::string& vg_name, const std::string& vol_name, Volume** res);
-    // close a volume, and return the io context of volume.
     int vol_close(const std::string& vg_name, const std::string& vol_name);
-    
-    /**一个FlameStub结构对应一个Volume，注意：下列函数均为获得了Volume句柄后进行的操作**/
-    // async io call
-    //Volume read
-    int read(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume write
-    int write(const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume reset
-    int reset(uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    //Volume flush
-    int flush(libflame_callback cb, void* arg);
 
-    FlameStub(FlameContext* flame_context, uint64_t gw_id, std::shared_ptr<grpc::Channel> channel)
+    int exist_volume(uint64_t volume_id);
+    int id_2_vol_name(uint64_t volume_id, std::string& group_name, std::string& volume_name);
+    int vol_name_2_id(const std::string& group_name, const std::string& volume_name, uint64_t& volume_id);
+    /**注意：下列函数均为获得了Volume句柄后进行的操作**/
+    // Volume async io call
+    int read (const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int write(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int reset(const std::string& vg_name, const std::string& vol_name, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int flush(const std::string& vg_name, const std::string& vol_name, libflame_callback cb, void* arg);
+
+    FlameHandlers(FlameContext* flame_context, uint64_t gw_id, std::shared_ptr<grpc::Channel> channel)
     : flame_context_(flame_context), gw_id_(gw_id), stub_(LibFlameService::NewStub(channel)) {
-        volume.reset(new Volume());
         cmd_client_stub = CmdClientStubImpl::create_stub(nullptr);
     }
 
-    ~FlameStub() {}
+    ~FlameHandlers() {}
 
-    std::unique_ptr<Volume> volume;
+    std::map <uint64_t, Volume *> volumes;
     std::shared_ptr<CmdClientStubImpl> cmd_client_stub;
 private:
     FlameContext* flame_context_;
     uint64_t gw_id_;
     std::unique_ptr<LibFlameService::Stub> stub_; 
 
-    FlameStub(const FlameStub& rhs) = delete;
-    FlameStub& operator=(const FlameStub& rhs) = delete;
+    FlameHandlers(const FlameHandlers& rhs) = delete;
+    FlameHandlers& operator=(const FlameHandlers& rhs) = delete;
 
-}; // class FlameStub
-
-
+}; // class FlameHandlers
 } // namespace flame
 
 #endif // LIBFLAME_H

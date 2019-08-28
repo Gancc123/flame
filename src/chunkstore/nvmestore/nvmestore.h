@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:06:40
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-28 14:37:23
+ */
 #ifndef FLAME_CHUNKSTORE_NVME_H
 #define FLAME_CHUNKSTORE_NVME_H
 
@@ -471,7 +479,7 @@ public:
     IOChannels *get_read_channels();
     IOChannels *get_write_channels();
     struct spdk_io_channel *get_meta_channel();
-
+    void set_meta_channel(spdk_io_channel* meta_channel);
     uint64_t get_page_size();
     uint64_t get_cluster_size();
     uint64_t get_total_chunks();
