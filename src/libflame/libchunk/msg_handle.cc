@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 11:20:38
+ * @LastEditTime: 2019-08-23 18:31:05
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -19,21 +19,13 @@
 namespace flame {
 
 //--------------------------RdmaWorkRequest------------------------------------------------------
-/**
- * @name: create_request
- * @describtions: 创建send/recv融为一体的RDMA work request
- * @param   msg::MsgContext*        msg_context         Msg上下文
- *          Msger*                  msger               现在基本功能只是用来post recv_request以及区分服务器/客户端
- * @return: RdmaWorkRequest*
- */
-RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, Msger* msger){
-    RdmaWorkRequest* req = new RdmaWorkRequest(msg_context, msger);
+int RdmaWorkRequest::allocate_send_buffer(RdmaWorkRequest* req){
     if(!req){
-        return nullptr;
+        return 1;
     }
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
-    Buffer buffer = allocator->allocate(4096);//4KB这里的buffer会自己释放吗？
-    Buffer data_buffer = allocator->allocate(4096);//4KB这里的buffer会自己释放吗？
+    Buffer buffer = allocator->allocate(4096);
+    Buffer data_buffer = allocator->allocate(4096);
     req->buf_ = buffer;
     req->sge_[0].addr = (uint64_t)buffer.addr();
     req->sge_[0].length = 64;
@@ -42,7 +34,10 @@ RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, M
     req->sge_[1].addr = (uint64_t)data_buffer.addr();
     req->sge_[1].length = 4096;
     req->sge_[1].lkey = data_buffer.lkey();
+    return 0;
+}
 
+int RdmaWorkRequest::prepare_send_recv(RdmaWorkRequest* req){
     ibv_send_wr &swr = req->send_wr_;
     memset(&swr, 0, sizeof(swr));
     swr.wr_id = reinterpret_cast<uint64_t>((RdmaSendWr *)req);
@@ -56,23 +51,46 @@ RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, M
     rwr.wr_id = reinterpret_cast<uint64_t>((RdmaRecvWr *)req);
     rwr.num_sge = 2;
     rwr.sg_list = req->sge_;
+    return 0;
+}
 
-    req->command = req->buf_.addr();
+int RdmaWorkRequest::set_command(RdmaWorkRequest* req, void* addr){
+    req->command = addr;
+    return 0;
+}
+
+uint32_t RdmaWorkRequest::_get_cqgcqn(){
+    //TODO 判断command是否有值
+    return ((cmd_res_t*)command)->hdr.cqg << 16 | ((cmd_res_t*)command)->hdr.cqn;
+}
+
+bool RdmaWorkRequest::_judge_seq_type(int type){
+    if(((cmd_res_t*)command)->hdr.cn.seq == type) return true;
+    else return false;
+}
+/**
+ * @name: create_request
+ * @describtions: 创建send/recv融为一体的RDMA work request
+ * @param   msg::MsgContext*        msg_context         Msg上下文
+ *          Msger*                  msger               现在基本功能只是用来post recv_request以及区分服务器/客户端
+ * @return: RdmaWorkRequest*
+ */
+RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, Msger* msger){
+    RdmaWorkRequest* req = new RdmaWorkRequest(msg_context, msger);
+    if(!req)    return nullptr;
+    int rc = allocate_send_buffer(req);
+    if(rc != 0) return nullptr;
+    rc = prepare_send_recv(req);
+    if(rc != 0) return nullptr;
+    rc = set_command(req, req->buf_.addr());
+    if(rc != 0) return nullptr;
     return req;
 }
 
-
-RdmaWorkRequest::~RdmaWorkRequest(){
-    
+RdmaWorkRequest::~RdmaWorkRequest(){  
 }
 
 //**以下四个函数都是状态机的变化，最终会调用run()来执行实际的操作
-/**
- * @name: on_send_cancelled
- * @describtions: 
- * @param 
- * @return: 
- */
 void RdmaWorkRequest::on_send_cancelled(bool err, int eno){
     status = DESTROY;
     run();
@@ -83,12 +101,7 @@ void RdmaWorkRequest::on_recv_cancelled(bool err, int eno){
     run();
 }
 
-/**
- * @name: on_send_done
- * @describtions: RDMA发送成功后的回调
- * @param   ibv_wc&             cqe         completion queue element判断是否成功
- * @return: 
- */
+/* on_send_done cqe(completion queue element)判断发送的类型类型 */
 void RdmaWorkRequest::on_send_done(ibv_wc &cqe){
     if(cqe.status == IBV_WC_SUCCESS){
         switch(cqe.opcode){
@@ -111,16 +124,8 @@ void RdmaWorkRequest::on_send_done(ibv_wc &cqe){
     run();
 }
 
-/**
- * @name: on_recv_done
- * @describtions: 接收到WorkRequest的回调
- * @param   RdmaConnection*     conn        对端的连接
- *          ibv_wc&             cqe         完成元素，接受是否成功            
- * @return: 
- */
 void RdmaWorkRequest::on_recv_done(msg::RdmaConnection *conn, ibv_wc &cqe){
     this->conn = conn;
-    ML(msg_context_, info, "I recv !!");
     if(cqe.status == IBV_WC_SUCCESS){
         status = RECV_DONE;
     }else{
@@ -132,10 +137,9 @@ void RdmaWorkRequest::on_recv_done(msg::RdmaConnection *conn, ibv_wc &cqe){
 /**
  * @name: run
  * @describtions: 状态机变化的真正执行函数，包括五种状态
- * @param 
- * @return: 
  */
 void RdmaWorkRequest::run(){
+    FlameContext* fct = FlameContext::get_context();
     bool next_ready;
     if(msger_->is_server()){
         do{
@@ -143,7 +147,6 @@ void RdmaWorkRequest::run(){
             switch(status){
                 case RECV_DONE:{
                     CmdServiceMapper* cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper(); 
-                    FlameContext* fct = FlameContext::get_context();
                     fct->log()->ldebug("RdmaworkRequest::run: %u",spdk_env_get_current_core());
                     CmdService* service = cmd_service_mapper->get_service(((cmd_t *)command)->hdr.cn.cls, ((cmd_t *)command)->hdr.cn.seq);
                     this->service_ = service;
@@ -151,7 +154,7 @@ void RdmaWorkRequest::run(){
                     break;
                 } 
                 case EXEC_DONE:
-                case READ_DONE:            //**如果是read/write，SEND_DONE是否代表read/write已经成功????????????????????????? **//
+                case READ_DONE:         
                 case WRITE_DONE:
                     service_->call(this);
                     break;   
@@ -171,24 +174,22 @@ void RdmaWorkRequest::run(){
             next_ready = false;
             switch(status){
             case RECV_DONE:{
-                std::map<uint32_t, MsgCallBack>& cb_map = msger_->get_client_stub()->get_cb_map();
-                uint32_t key = ((cmd_res_t*)command)->hdr.cqg << 16 | ((cmd_res_t*)command)->hdr.cqn;
+                CmdClientStub* cmd_clientstub = msger_->get_client_stub();
+                std::map<uint32_t, MsgCallBack>& cb_map = cmd_clientstub->get_cb_map();
+                uint32_t key = _get_cqgcqn();
                 MsgCallBack msg_cb = cb_map[key];
-                if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_READ && msg_cb.cb_fn != nullptr){  //读操作
+                if(_judge_seq_type(CMD_CHK_IO_READ) && msg_cb.cb_fn != nullptr){  //读操作
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
                     if(res->get_inline_len() > 0 && res->get_inline_len() <= MAX_INLINE_SIZE){
-                        FlameContext* fct = FlameContext::get_context();
                         fct->log()->ldebug("inline read !!");
                         msg_cb.cb_fn(*(Response *)res, (uint64_t)data_buf_.addr(), msg_cb.cb_arg);
                     }
                     else {
-                        FlameContext* fct = FlameContext::get_context();
                         fct->log()->ldebug("uninline read !!");
                         msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
-                    }
-                        
+                    }       
                 }
-                else if(((cmd_res_t*)command)->hdr.cn.seq == CMD_CHK_IO_WRITE && msg_cb.cb_fn != nullptr){           //写操作
+                else if(_judge_seq_type(CMD_CHK_IO_WRITE) && msg_cb.cb_fn != nullptr){           //写操作
                     CommonRes* res = new CommonRes((cmd_res_t*)command);
                     msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
                 }
@@ -214,7 +215,6 @@ void RdmaWorkRequest::run(){
 //-------------------------------------------RdmaWorkRequestPool------------------------------------//
 RdmaWorkRequestPool::RdmaWorkRequestPool(msg::MsgContext *c, Msger *m)
     :msg_context_(c), msger_(m), mutex_(MUTEX_TYPE_ADAPTIVE_NP){
-
 }
 
 RdmaWorkRequestPool::~RdmaWorkRequestPool(){
@@ -311,8 +311,6 @@ int RdmaWorkRequestPool::purge(int n){
     return purge_lockfree(n);
 }
 
-
-//-------------------------------------------------Msger-------------------------------------------//
 /**
  * @name: get_recv_wrs
  * @describtions: 提供给msg模块进行recv work request的填充
@@ -331,40 +329,18 @@ int Msger::get_recv_wrs(int n, std::vector<msg::RdmaRecvWr *> &wrs){
 }
 
 /**
- * @name: on_conn_declared
- * @describtions: 在将要建立连接时的回调
- * @param   Connection*     conn        
- *          Session*        s
- * @return: 
- */
-void Msger::on_conn_declared(msg::Connection *conn, msg::Session *s){
-    ML(msg_context_, info, "Session: {}", s->to_string());
-}
-
-/**
- * @name: on_conn_recv
- * @describtions: 接收到消息的回调
- * @param {type} 
- * @return: 
- */
-void Msger::on_conn_recv(msg::Connection *conn, msg::Msg *msg){
-    ML(msg_context_, info, "I recv something.");
-};
-
-/**
  * @name: on_rdma_env_ready
  * @describtions: RDMA环境已设置好的回调，其中RDMA环境如protect domain等
  * @param  
  * @return: 
  */
 void Msger::on_rdma_env_ready(){
-    ML(msg_context_, info, "I recv something.");
-    /*第一次需要传入参数构建全局的RdmaAllocator*/
     FlameContext* fct = FlameContext::get_context();
+    fct->log()->ldebug("RDMA Env Ready!");
+    /*第一次需要传入参数构建全局的RdmaAllocator*/
     MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
     assert(mem_cfg);
     flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
 };
-
 } //namespace flame

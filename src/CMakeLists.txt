@@ -304,6 +304,7 @@ add_library(libchunk-objs OBJECT
     libflame/libchunk/libchunk.cc
     libflame/libchunk/cmd_service_mapper.cc
     libflame/libchunk/msg_handle.cc
+    libflame/libchunk/chunk_cmd_service.cc
     )
 list(APPEND obj_modules libchunk)
 

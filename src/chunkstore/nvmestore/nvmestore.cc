@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-10 09:06:40
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-28 14:37:47
+ */
 #include <memory>
 #include <sstream>
 #include <fstream>
@@ -103,6 +111,10 @@ IOChannels *NvmeStore::get_write_channels() {
 
 struct spdk_io_channel *NvmeStore::get_meta_channel() {
     return meta_channel;
+}
+
+void set_meta_channel(spdk_io_channel* meta_channel){
+    this->meta_channel = meta_channel;
 }
 
 uint64_t NvmeStore::get_page_size() {
@@ -879,16 +891,12 @@ int NvmeStore::chunk_remove(uint64_t chk_id) {
  * note: 如果该chunk已经被打开了，则使得open_ref加1.
 */
 std::shared_ptr<Chunk> NvmeStore::chunk_open(uint64_t chk_id) {
-    //int ret = NVMESTORE_OP_SUCCESS;
     if(!chunk_exist(chk_id)) {
         fct_->log()->lerror("chunk <%" PRIx64 "> is not existed.", chk_id);
         return nullptr;
     }
-
     NvmeChunk *chunk = chunk_map->get_chunk(chk_id);
-
     if(chunk != nullptr) {
-        //chunk_ptr = std::make_shared<Chunk>(raw_chunk);
         return std::shared_ptr<Chunk>(chunk);
     } else {
         chunk = new NvmeChunk(fct_, this, chk_id);
@@ -896,15 +904,12 @@ std::shared_ptr<Chunk> NvmeStore::chunk_open(uint64_t chk_id) {
             fct_->log()->lerror("new NvmeChunk failed.");
             return nullptr;
         }
-
         std::cout << "blobid = " << chunk_blob_map->get_blob_id(chk_id) << std::endl;
-        
         if(chunk->open(chunk_blob_map->get_blob_id(chk_id), true, nullptr) != NVMECHUNK_OP_SUCCESS) {
             delete chunk;
             chunk = nullptr;
         }
     }
-
     return std::shared_ptr<Chunk>(chunk);
 }
 

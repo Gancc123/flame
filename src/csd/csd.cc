@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-06-14 21:24:50
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-08-28 14:38:03
+ */
 #include "common/context.h"
 #include "common/cmdline.h"
 #include "common/convert.h"
@@ -555,47 +563,6 @@ void pre_exit_csd(int signum){
     g_csd->chunkstore_flush();
     exit(signum); 
 }
-
-/*
-int main(int argc, char** argv) {
-    CsdCli* csd_cli = new CsdCli();
-    int r = csd_cli->parser(argc,  argv);
-    if (r != CmdRetCode::SUCCESS) {
-        csd_cli->print_error();
-        return r;
-    } else if (csd_cli->help.done()) {
-        csd_cli->print_help();
-        return 0;
-    }
-    // 修改信号量SIGINT
-    signal(SIGINT,pre_exit_csd);
-    
-    // 获取全局上下文
-    FlameContext* fct = FlameContext::get_context();
-
-    if (!fct->init_config(csd_cli->config_path.get())) {
-        fct->log()->lerror("init config faild");
-        exit(-1);
-    }
-    // 创建CSD上下文
-    CsdContext* cct = new CsdContext(fct);
-
-    // 创建CSD主程序
-    CSD csd(cct);
-
-    g_csd = &csd;
-
-    // 初始化CSD，CSD在初始化完成后保证不再使用CsdCli
-    if (csd.init(csd_cli) != 0)
-        exit(-1);
-    
-    // 释放CsdCli资源
-    delete csd_cli;
-
-    // 运行CSD主程序
-    return csd.run();
-}
-*/
 
 static void csd_start(void *arg1, void *arg2) {
     CsdContext *cct = static_cast<CsdContext *>(arg1);
