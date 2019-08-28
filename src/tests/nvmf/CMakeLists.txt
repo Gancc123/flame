@@ -1,4 +1,4 @@
-set(TESTS_LIBCHUNK_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/tests/nvmf_tgt)
+set(TESTS_NVMF_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/tests/nvmf_tgt)
 
 add_executable(nvmf_tgt
     ${chunkstore_objs}
@@ -12,14 +12,20 @@ add_executable(nvmf_tgt
     nvmf_tgt.c
     )
 target_link_libraries(nvmf_tgt 
-            common-except-spdk
-            ${flame_grpc_deps}
-            ${SPDK_FLAME_LIBRARIES}
-            )
+    common-except-spdk
+    ${flame_grpc_deps}
+    ${SPDK_FLAME_LIBRARIES}
+    )
+
+add_custom_command(
+    TARGET nvmf_tgt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_SOURCE_DIR}/nvmf.conf
+            ${TESTS_NVMF_OUTPUT_DIR})
 
 set_target_properties(nvmf_tgt
     PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${TESTS_LIBCHUNK_OUTPUT_DIR}
+    RUNTIME_OUTPUT_DIRECTORY ${TESTS_NVMF_OUTPUT_DIR}
     )
 
 
