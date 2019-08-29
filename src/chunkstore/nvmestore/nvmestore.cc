@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:06:40
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-28 14:37:47
+ * @LastEditTime: 2019-08-29 17:00:00
  */
 #include <memory>
 #include <sstream>
@@ -113,7 +113,7 @@ struct spdk_io_channel *NvmeStore::get_meta_channel() {
     return meta_channel;
 }
 
-void set_meta_channel(spdk_io_channel* meta_channel){
+void NvmeStore::set_meta_channel(spdk_io_channel* meta_channel){
     this->meta_channel = meta_channel;
 }
 
