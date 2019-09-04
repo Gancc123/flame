@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:12:14
+ */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
  * @brief: 消息模块头文件汇总
@@ -34,7 +42,6 @@
 #include "socket/TcpConnection.h"
 
 #include "rdma/RdmaStack.h"
-#include "rdma/RdmaMem.h"
 #include "rdma/MemoryManager.h"
 #include "rdma/RdmaPrepConn.h"
 #include "rdma/RdmaListenPort.h"

@@ -1,10 +1,18 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:15:24
+ */
 #ifndef FLAME_MSG_RDMA_RDMA_CONNECTION_H
 #define FLAME_MSG_RDMA_RDMA_CONNECTION_H
 
 #include "msg/Msg.h"
 #include "msg/Connection.h"
 #include "MemoryManager.h"
-#include "RdmaMem.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include <atomic>
 #include <string>
@@ -61,8 +69,7 @@ public:
         CLOSED
     };
 private:
-    using Chunk = ib::Chunk; 
-    using RdmaBuffer = ib::RdmaBuffer;
+    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
     ib::QueuePair *qp = nullptr;
     ib::IBSYNMsg peer_msg;
     ib::IBSYNMsg my_msg;
@@ -81,36 +88,21 @@ private:
     Msg *recv_cur_msg = nullptr;
 
     std::atomic<RdmaStatus> status;
-    std::atomic<bool> fin_msg_pending;
 
     //for RdmaConnection V2
     std::deque<RdmaSendWr *> pending_send_wrs;
-    void fin_v2(bool do_close);
-
-    void recv_msg_cb(Msg *msg);
-    int post_work_request(std::vector<Chunk *> &tx_buffers);
-    int post_rdma_send(std::list<Msg *> &msg);
-    int submit_send_works();
-    int submit_rw_works();
-    int decode_rx_buffer(ib::Chunk *chunk);
-    int reap_send_msg();
+    void fin_v2(bool do_close);//
     RdmaConnection(MsgContext *mct);
 public:
     static RdmaConnection *create(MsgContext *mct, RdmaWorker *w, uint8_t sl=0);
     ~RdmaConnection();
     virtual msg_ttype_t get_ttype() override { return msg_ttype_t::RDMA; }
-
     virtual ssize_t send_msg(Msg *msg, bool more=false) override;
-    virtual Msg* recv_msg() override;
-    virtual ssize_t send_msgs(std::list<Msg *> &msgs) override;
+    virtual Msg* recv_msg() override {};
     virtual int pending_msg() override {
         MutexLocker l(send_mutex);
         return this->msg_list.size();
     };
-    size_t pending_rw_works(){
-        MutexLocker l(send_mutex);
-        return this->rw_work_list.size();
-    }
     virtual bool is_connected() override{
         return status == RdmaStatus::CAN_WRITE;
     }
@@ -119,44 +111,27 @@ public:
     virtual bool is_owner_fixed() const override { return true; }
 
     std::atomic<bool> is_dead_pending;
-    std::atomic<uint32_t> inflight_rx_buffers;
-
-    void pass_wc(std::list<ibv_wc> &wc);
-    void get_wc(std::list<ibv_wc> &wc);
-
-    size_t recv_data();
-
-    ssize_t submit(bool more=false);
 
     int activate();
-
-    int post_rdma_rw(RdmaRwWork *work, bool enqueue=true);
-    int post_imm_data(uint32_t imm_data);
-    int post_imm_data(std::vector<uint32_t> *imm_data_vec);
 
     const char* get_qp_state() { 
         return ib::Infiniband::qp_state_string(qp->get_state()); 
     }
-    void fin();
     void fault();
     void do_close();
     bool is_closed() const { return status == RdmaStatus::CLOSED; }
     bool is_error() const { return status == RdmaStatus::ERROR; }
     ib::QueuePair *get_qp() const { return this->qp; }
     uint32_t get_tx_wr() const { return this->qp->get_tx_wr(); }
-
     ib::IBSYNMsg &get_my_msg() {
         return my_msg;
     }
-
     ib::IBSYNMsg &get_peer_msg() {
         return peer_msg;
     }
-
     RdmaWorker *get_rdma_worker() const{
         return rdma_worker;
     }
-
     //for RdmaConnection V2
     void post_send(RdmaSendWr *wr, bool more=false);
     void post_recv(RdmaRecvWr *wr);
@@ -185,7 +160,6 @@ public:
             return "unknown";
         }
     }
-
     static void event_fn_send_fin_msg(void *arg1, void *arg2);
 };
 

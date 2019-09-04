@@ -1,8 +1,17 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:45:20
+ */
 #ifndef FLAME_TESTS_MSG_RDMA_CONN_V2_MSGER_H
 #define FLAME_TESTS_MSG_RDMA_CONN_V2_MSGER_H
 
 #include "msg/msg_core.h"
 #include "common/thread/mutex.h"
+#include "include/buffer.h"
 
 #include <deque>
 #include <sys/queue.h>
@@ -29,15 +38,12 @@ public:
         ERROR,
     };
 private:
-    using RdmaBuffer = ib::RdmaBuffer;
     MsgContext *mct;
     RwMsger *msger;
     ibv_sge sge;
-    // ibv_sge data_sge;
     ibv_send_wr send_wr;
     ibv_recv_wr recv_wr;
-    RdmaBuffer *buf;
-    // RdmaBuffer *data_buffer;
+    Buffer *buf;
     RwRequest(MsgContext *c, RwMsger *m)
     : mct(c), msger(m), status(FREE), conn(nullptr) {}
 public:

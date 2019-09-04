@@ -224,7 +224,6 @@ if(HAVE_RDMA)
   list(APPEND msg_rdma_common_srcs
     msg/rdma/BuddyAllocator.cc
     msg/rdma/Infiniband.cc
-    msg/rdma/RdmaMem.cc
     msg/rdma/MemoryManager.cc
     msg/rdma/RdmaListenPort.cc
     msg/rdma/RdmaPrepConn.cc
