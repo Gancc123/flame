@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 10:29:09
+ */
 #include "common/cmdline.h"
 
 #include <grpcpp/grpcpp.h>
@@ -17,6 +25,8 @@ using namespace std;
 using namespace flame;
 using namespace flame::cli;
 
+#define DEFAULT_MGR_ADDR "192.168.3.112:6677"
+
 static int success__() {
     printf("Success!\n");
     return 0;
@@ -31,11 +41,11 @@ static void check_faild__(int r, const std::string& msg) {
 
 namespace flame {
 
-static unique_ptr<FlameClientContext> make_flame_client_context() {
+static unique_ptr<FlameClientContext> make_flame_client_context(string mgr_addr) {
     FlameContext* fct = FlameContext::get_context();
 
     FlameClient* client = new FlameClientImpl(fct, grpc::CreateChannel(
-        "192.168.3.112:6677", grpc::InsecureChannelCredentials()
+        mgr_addr, grpc::InsecureChannelCredentials()
     ));
     
     if (!client) {
@@ -60,11 +70,12 @@ public:
 
     Argument<int> offset {this, 's', "offset", "offset", 0};
     Argument<int> number {this, 'n', "number", "the number of vg that need to be showed", 0};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         list<volume_group_meta_t> res;
         int r = cct->client()->get_vol_group_list(res, offset.get(), number.get());
         check_faild__(r, "show volume group.\n");
@@ -90,11 +101,12 @@ public:
     : Cmdline(parent, "create", "create an volume group") {}
 
     Serial<string> name {this, 1, "name", "the name of volume group"};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         
         int r = cct->client()->create_vol_group(name.get());
         check_faild__(r, "create volume group");
@@ -109,11 +121,12 @@ public:
     : Cmdline(parent, "remove", "remove an volume group") {}
 
     Serial<string> name {this, 1, "name", "the name of volume group"};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
 
         int r = cct->client()->remove_vol_group(name.get());
         check_faild__(r, "remove volume group");
@@ -129,11 +142,12 @@ public:
 
     Serial<string> old_name {this, 1, "old_name", "the old name of vg"};
     Serial<string> new_name {this, 2, "new_name", "the new name of vg"};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
 
         int r = cct->client()->rename_vol_group(old_name.get(), new_name.get());
         check_faild__(r, "rename volume group");
@@ -164,11 +178,12 @@ public:
 
     Argument<int> offset {this, 's', "offset", "offset", 0};
     Argument<int> number {this, 'n', "number", "the number of vg that need to be showed", 0};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         list<volume_meta_t> res;
         int r = cct->client()->get_volume_list(res, vg_name.get(), offset.get(), number.get());
         check_faild__(r, "get volume list");
@@ -200,13 +215,14 @@ public:
 
     Argument<int>   chk_sz   {this, "chunk_size", "the size of chunk in this volume, unit(GB)", 1};
     Argument<string> spolicy {this, "store_policy", "the store policy of this volume", ""};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     Switch  prealloc    {this, "preallocate", "pre allocating the physical space for volume"};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         vol_attr_t attr;
         attr.size = (uint64_t)size.get() << 30;
         attr.chk_sz = chk_sz.get() << 30;
@@ -226,11 +242,12 @@ public:
 
     Serial<string>  vg_name  {this, 1, "vg_name", "the name of volume group"};
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         int r = cct->client()->remove_volume(vg_name.get(), vol_name.get());
         check_faild__(r, "remove volume");
 
@@ -246,11 +263,13 @@ public:
     Serial<string>  vg_name  {this, 1, "vg_name", "the name of volume group"};
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
     Serial<string>  new_name {this, 3, "new_name", "the new name of volume"};
+    
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
 
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         int r = cct->client()->rename_volume(vg_name.get(), vol_name.get(), new_name.get());
         check_faild__(r, "rename volume");
 
@@ -266,10 +285,12 @@ public:
     Serial<string>  vg_name  {this, 1, "vg_name", "the name of volume group"};
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
 
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
+
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         uint32_t retcode;
         volume_meta_t res;
         int r = cct->client()->get_volume_info(res, vg_name.get(), vol_name.get(), retcode);
@@ -298,10 +319,12 @@ public:
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
     Serial<int>     size     {this, 3, "size", "the new size of volume, unit(GB)"};
 
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
+
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         int r = cct->client()->resize_volume(vg_name.get(), vol_name.get(), size.get());
         check_faild__(r, "resize volume");
 
@@ -329,10 +352,12 @@ public:
     CltInfoCli(Cmdline* parent)
     : Cmdline(parent, "info", "show the information of cluster") {}
 
+    Argument<string> mgr_addr {this, 'm', "mgr_addr", "the ip and port of manager: 192.168.3.112:6677", DEFAULT_MGR_ADDR};
+
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context();
+        auto cct = make_flame_client_context(mgr_addr);
         cluster_meta_t res;
         int r = cct->client()->get_cluster_info(res);
         check_faild__(r, "resize volume");

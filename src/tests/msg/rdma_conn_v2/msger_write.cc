@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:56:39
+ * @LastEditTime: 2019-09-05 09:24:13
  */
 #include "msger_write.h"
 
@@ -134,12 +134,6 @@ void RwRequest::run(){
             switch(status){
             case RECV_DONE:
                 ML(mct, info, "Recv from server");
-                // if(data->count >= 200){
-                //     clog("client iter done.");
-                //     status = DESTROY;
-                //     next_ready = true;
-                //     break;
-                // }
                 assert(conn);
                 conn->post_send(this);
                 break;

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:12:14
+ * @LastEditTime: 2019-09-05 10:08:36
  */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
@@ -42,7 +42,6 @@
 #include "socket/TcpConnection.h"
 
 #include "rdma/RdmaStack.h"
-#include "rdma/MemoryManager.h"
 #include "rdma/RdmaPrepConn.h"
 #include "rdma/RdmaListenPort.h"
 #include "rdma/RdmaConnection.h"

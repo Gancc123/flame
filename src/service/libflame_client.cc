@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 11:13:01
+ */
 #include "libflame_client.h"
 
 #include "proto/libflame.grpc.pb.h"
@@ -74,6 +82,11 @@ FlameHandlers* FlameHandlers::connect(std::string& path){
         path, grpc::InsecureChannelCredentials())
     );
     return g_flame_handlers;
+}
+
+FlameHandlers* FlameHandlers::connect(){
+    if(g_flame_handlers != nullptr) return g_flame_handlers;
+    else return nullptr;
 }
 
 int FlameHandlers::disconnect(){

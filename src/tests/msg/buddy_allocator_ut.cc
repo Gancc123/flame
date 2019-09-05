@@ -1,12 +1,20 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:17:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 09:07:03
+ */
 #include "gtest/gtest.h"
-#include "msg/rdma/BuddyAllocator.h"
+#include "memzone/rdma/BuddyAllocator.h"
 
 #include <vector>
 #include <cstdlib>
 #include <ctime>
 
 namespace flame {
-namespace msg{
+namespace memory{
 namespace ib{
 
 struct mem_stat{
