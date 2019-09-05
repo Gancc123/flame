@@ -1,4 +1,13 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 18:14:48
+ */
 #include "msger.h"
+#include "memzone/rdma_mz.h"
 
 #include "util/clog.h"
 
@@ -11,24 +20,24 @@ Request* Request::create(MsgContext *c, Msger *m){
         return nullptr;
     }
     auto allocator = Stack::get_rdma_stack()->get_rdma_allocator();
-    auto buffer = allocator->alloc(4096);
+    auto buffer = allocator->allocate_ptr(4096);
     if(!buffer){
         delete req;
         return nullptr;
     }
-    auto data_buffer = allocator->alloc(4096);
+    auto data_buffer = allocator->allocate_ptr(4096);
     if(!data_buffer){
         delete req;
-        allocator->free(buffer);
+        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)data_buffer);
         return nullptr;
     }
     req->buf = buffer;
     req->data_buffer = data_buffer;
-    req->sge.addr = buffer->addr();
+    req->sge.addr = (uint64_t)buffer->addr();
     req->sge.length = sizeof(test_data_t) > 64 ? sizeof(test_data_t) : 64;
     req->sge.lkey = buffer->lkey();
 
-    req->data_sge.addr = data_buffer->addr();
+    req->data_sge.addr = (uint64_t)data_buffer->addr();
     req->data_sge.length = data_buffer->size();
     req->data_sge.lkey = data_buffer->lkey();
 
@@ -48,9 +57,9 @@ Request* Request::create(MsgContext *c, Msger *m){
     rwr.num_sge = 1;
     rwr.sg_list = &req->sge;
 
-    req->data = (test_data_t *)req->buf->buffer();
+    req->data = (test_data_t *)req->buf->addr();
     req->data->ignore = 0;
-    req->data->raddr = data_buffer->addr();
+    req->data->raddr = (uint64_t)data_buffer->addr();
     req->data->rkey = data_buffer->rkey();
     req->data->length = data_buffer->size();
     req->data->is_read = 0;
@@ -62,11 +71,11 @@ Request::~Request(){
     auto allocator = Stack::get_rdma_stack()->get_rdma_allocator();
     assert(allocator);
     if(buf){
-        allocator->free(buf);
+        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)buf);
         buf = nullptr;
     }
     if(data_buffer){
-        allocator->free(data_buffer);
+        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)buf);
         data_buffer = nullptr;
     }
 }
@@ -279,6 +288,15 @@ int Msger::get_recv_wrs(int n, std::vector<RdmaRecvWr *> &wrs){
 void Msger::on_conn_declared(Connection *conn, Session *s){
     ML(mct, info, "Session: {}", s->to_string());
 }
+
+void Msger::on_rdma_env_ready(){
+    FlameContext* fct = FlameContext::get_context();
+    /*第一次需要传入参数构建全局的RdmaAllocator*/
+    MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
+    assert(mem_cfg);
+    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
+    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
+};
 
 }// namespace msg
 }// namespace flame

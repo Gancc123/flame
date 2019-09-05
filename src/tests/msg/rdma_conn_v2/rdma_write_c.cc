@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:46:15
+ */
 #include "common/context.h"
 #include "msg/msg_core.h"
 #include "util/clog.h"
@@ -27,8 +35,8 @@ void send_first_incre_msg(MsgContext *mct, RwMsger *msger){
 
     auto req = msger->get_req_pool().alloc_req();
     assert(req);
-    ib::RdmaBufferAllocator* allocator = Stack::get_rdma_stack()->get_rdma_allocator();
-    ib::RdmaBuffer* lbuf = allocator->alloc(4096); //获取一片本地的内存
+    RdmaBufferAllocator* allocator = Stack::get_rdma_stack()->get_rdma_allocator();
+    Buffer* lbuf = allocator->alloc(4096); //获取一片本地的内存
     req->data->addr = (uint64_t)lbuf->buffer();
     req->data->rkey = lbuf->rkey();
 

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:25:42
+ */
 #include "RdmaStack.h"
 #include "Infiniband.h"
 #include "RdmaListenPort.h"
@@ -6,6 +14,7 @@
 #include "msg/msg_def.h"
 #include "msg/MsgManager.h"
 #include "msg/internal/errno.h"
+#include "memzone/rdma_mz.h"
 
 #include <cassert>
 
@@ -66,7 +75,6 @@ RdmaWorker::~RdmaWorker(){
 
 int RdmaWorker::init(){
     ib::Infiniband &ib = manager->get_ib();
-    memory_manager = ib.get_memory_manager();
 
     if(mct->config->rdma_poll_event){
         tx_cc = ib.create_comp_channel(mct);
@@ -157,7 +165,6 @@ int RdmaWorker::process_cq_dry_run(){
 }
 
 void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
-    std::vector<Chunk*> tx_chunks;
     std::set<RdmaConnection *> to_wake_conns;
     auto tx_queue_len = manager->get_ib().get_tx_queue_len();
 
@@ -525,24 +532,6 @@ void RdmaWorker::make_conn_dead(RdmaConnection *conn){
     
 }
 
-int RdmaWorker::post_chunks_to_rq(std::vector<Chunk *> &chunks, ibv_qp *qp){
-    if(srq){
-        return manager->get_ib().post_chunks_to_srq(chunks, srq);
-    }else{
-        assert(qp);
-        return manager->get_ib().post_chunks_to_rq(chunks, qp);
-    }
-}
-
-int RdmaWorker::post_chunks_to_rq(int num, ibv_qp *qp){
-    if(srq){
-        return manager->get_ib().post_chunks_to_srq(num, srq);
-    }else{
-        assert(qp);
-        return manager->get_ib().post_chunks_to_rq(num, qp);
-    }
-}
-
 int RdmaWorker::post_rdma_recv_wr_to_srq(std::vector<RdmaRecvWr *> &wrs){
     if(!srq || wrs.empty()) return -1;
     uint32_t i = 0;
@@ -870,8 +859,8 @@ Connection* RdmaStack::connect(NodeAddr *addr){
     return conn;
 }
 
-ib::RdmaBufferAllocator *RdmaStack::get_rdma_allocator() {
-    return manager->get_ib().get_memory_manager()->get_rdma_allocator();
+BufferAllocator *RdmaStack::get_rdma_allocator() {
+    return RdmaAllocator::get_buffer_allocator();
 }
 
 void RdmaStack::on_rdma_prep_conn_close(RdmaPrepConn *conn){

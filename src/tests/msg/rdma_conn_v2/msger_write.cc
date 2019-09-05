@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 09:24:13
+ */
 #include "msger_write.h"
 
 #include "util/clog.h"
@@ -10,26 +18,15 @@ RwRequest* RwRequest::create(MsgContext *c, RwMsger *m){
     if(!req){
         return nullptr;
     }
-    auto buffer = Stack::get_rdma_stack()->get_rdma_allocator()->alloc(4096);
+    auto buffer = Stack::get_rdma_stack()->get_rdma_allocator()->allocate_ptr(4096);
     if(!buffer){
         delete req;
         return nullptr;
     }
-    // auto data_buffer = Stack::get_rdma_stack()->get_rdma_allocator()->alloc(4096);
-    // if(!data_buffer){
-    //     delete req;
-    //     return nullptr;
-    // }
     req->buf = buffer;
-    req->sge.addr = buffer->addr();
+    req->sge.addr = (uint64_t)buffer->addr();
     req->sge.length = 64;
     req->sge.lkey = buffer->lkey();
-
-    // req->data_buffer = data_buffer;
-    // req->data_sge.addr = data_buffer->addr();
-    // req->data_sge.length = data_buffer->size();
-    // req->data_sge.lkey = data_buffer->lkey();
-
     ibv_send_wr &swr = req->send_wr;
     memset(&swr, 0, sizeof(swr));
     //注意此处的写法
@@ -53,7 +50,7 @@ RwRequest* RwRequest::create(MsgContext *c, RwMsger *m){
 
 RwRequest::~RwRequest(){
     if(buf){
-        Stack::get_rdma_stack()->get_rdma_allocator()->free(buf);
+        Stack::get_rdma_stack()->get_rdma_allocator()->get_allocator_ctx()->free(buf);
         buf = nullptr;
     }
 }
@@ -97,8 +94,8 @@ void RwRequest::run(){
             switch(status){
             case RECV_DONE:{
                 ML(mct, info, "Recv from client data->addr: {:x}", data->addr);
-                ib::RdmaBufferAllocator* allocator = Stack::get_rdma_stack()->get_rdma_allocator();
-                ib::RdmaBuffer* lbuf = allocator->alloc(4096); //获取一片本地的内存
+                flame::memory::ib::RdmaBufferAllocator* allocator = Stack::get_rdma_stack()->get_rdma_allocator();
+                flame::memory::ib::RdmaBuffer* lbuf = allocator->alloc(4096); //获取一片本地的内存
 
                 buf = lbuf;
                 sge.addr = lbuf->addr();
@@ -137,12 +134,6 @@ void RwRequest::run(){
             switch(status){
             case RECV_DONE:
                 ML(mct, info, "Recv from server");
-                // if(data->count >= 200){
-                //     clog("client iter done.");
-                //     status = DESTROY;
-                //     next_ready = true;
-                //     break;
-                // }
                 assert(conn);
                 conn->post_send(this);
                 break;

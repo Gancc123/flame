@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-07-12 17:34:25
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 16:28:55
+ * @LastEditTime: 2019-09-05 11:09:20
  */
 #include "include/libflame_api.h"
 
@@ -142,8 +142,7 @@ extern "C" int allocate_buffer(BufferInfo_t* const buffer_info, void** buf){
 extern "C" int flame_write(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
     FlameHandlers* flame_handlers;
-    std::string ip = "192.168.3.112:6677";
-    flame_handlers = FlameHandlers::connect(ip);//manager地址
+    flame_handlers = FlameHandlers::connect();//manager地址
     if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");
@@ -157,8 +156,7 @@ extern "C" int flame_write(const char* volume_group, const char* volume, void* b
 extern "C" int flame_read(const char* volume_group, const char* volume, void* buffer, const uint64_t offset, const uint64_t len, libflame_callback cb, void* cb_arg){
     Buffer *buf = (Buffer *)buffer;
     FlameHandlers* flame_handlers;
-    std::string ip = "192.168.3.112:6677";
-    flame_handlers = FlameHandlers::connect(ip);//manager地址
+    flame_handlers = FlameHandlers::connect();
     if (flame_handlers == nullptr) {
         flame::FlameContext* flame_context = flame::FlameContext::get_context();
         flame_context->log()->lerror("create flame=>mgr stub faild");

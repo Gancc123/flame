@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 15:48:53
+ * @LastEditTime: 2019-09-05 11:12:03
  *
  * @copyright Copyright (c) 2019
  * 
@@ -120,6 +120,7 @@ public:
     /**gRPC服务**/
     static FlameHandlers* connect(const Config& cfg);
     static FlameHandlers* connect(std::string& path);
+    static FlameHandlers* connect();
     int disconnect();
     // TODO 现在暂时没管arg，默认返回所有集群信息
     int cluster_info(const std::string& arg, cluster_meta_t& res);

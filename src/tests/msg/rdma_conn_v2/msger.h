@@ -1,8 +1,17 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 18:13:35
+ */
 #ifndef FLAME_TESTS_MSG_RDMA_CONN_V2_MSGER_H
 #define FLAME_TESTS_MSG_RDMA_CONN_V2_MSGER_H
 
 #include "msg/msg_core.h"
 #include "common/thread/mutex.h"
+#include "include/buffer.h"
 
 #include <deque>
 #include <sys/queue.h>
@@ -35,15 +44,15 @@ public:
         ERROR,
     };
 private:
-    using RdmaBuffer = ib::RdmaBuffer;
+    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
     MsgContext *mct;
     Msger *msger;
     ibv_sge sge;
     ibv_sge data_sge;
     ibv_send_wr send_wr;
     ibv_recv_wr recv_wr;
-    RdmaBuffer *buf;
-    RdmaBuffer *data_buffer;
+    Buffer *buf;
+    Buffer *data_buffer;
     Request(MsgContext *c, Msger *m)
     : mct(c), msger(m), status(FREE), conn(nullptr) {}
 public:
@@ -105,6 +114,7 @@ public:
     virtual void on_conn_declared(Connection *conn, Session *s) override;
     virtual void on_conn_recv(Connection *conn, Msg *msg) override {};
     virtual int get_recv_wrs(int n, std::vector<RdmaRecvWr *> &wrs) override;
+    virtual void on_rdma_env_ready() override;
 
     RequestPool &get_req_pool() { return pool; }
     bool is_server() { return is_server_; }

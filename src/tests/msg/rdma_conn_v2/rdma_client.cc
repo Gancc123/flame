@@ -1,8 +1,17 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 09:56:53
+ */
 #include "common/context.h"
 #include "msg/msg_core.h"
 #include "util/clog.h"
 
 #include "msger.h"
+#include "util/spdk_common.h"
 
 #include <unistd.h>
 #include <cstdio>
@@ -42,15 +51,15 @@ static void msg_clear_done_cb(void *arg1, void *arg2){
     msger->get_req_pool().purge(-1);
 }
 
-int main(){
+static void rdma_client_start(void *arg1, void *arg2){
     auto fct = FlameContext::get_context();
     if(!fct->init_config(CFG_PATH)){
         clog("init config failed.");
-        return -1;
+        return ;
     }
     if(!fct->init_log("", "TRACE", "client")){
         clog("init log failed.");
-        return -1;
+        return ;
     }
 
     auto mct = new MsgContext(fct);
@@ -66,7 +75,8 @@ int main(){
 
     mct->clear_done_cb = msg_clear_done_cb;
     mct->clear_done_arg1 = msger;
-    
+    mct->config->set_msg_worker_type("SPDK");
+
     ML(mct, info, "before msg module init");
     mct->init(msger);
     ML(mct, info, "after msg module init");
@@ -76,15 +86,31 @@ int main(){
 
     send_first_incre_msg(mct, msger);
 
-    std::getchar();
-
     ML(mct, info, "before msg module fin");
     mct->fin();
     ML(mct, info, "after msg module fin");
     
+    std::getchar();
     delete msger;
-
     delete mct;
+    spdk_app_stop(0);
+    return ;
+}
+
+int main(int argc, char *argv[]) {
+    // 初始化spdk应用程序启动的配置参数
+    struct spdk_app_opts opts;
+    spdk_app_opts_init(&opts);
+    opts.mem_size = 2048;
+    opts.rpc_addr = "/var/tmp/spdk_client.sock";
+    int rc = 0;
+    rc = spdk_app_start(&opts, rdma_client_start, nullptr, nullptr);
+    if(rc) {
+        SPDK_NOTICELOG("spdk app start: ERROR!\n");
+    } else {
+        SPDK_NOTICELOG("SUCCESS.\n");
+    }
+    spdk_app_fini();
 
     return 0;
 }

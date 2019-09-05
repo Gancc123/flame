@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:25:37
+ */
 #ifndef FLAME_MSG_RDMA_RDMA_STACK_H
 #define FLAME_MSG_RDMA_RDMA_STACK_H
 
@@ -9,7 +17,8 @@
 #include "msg/msg_context.h"
 #include "RdmaConnection.h"
 #include "Infiniband.h"
-#include "RdmaMem.h"
+#include "memzone/rdma/RdmaMem.h"
+#include "include/buffer.h"
 
 #include <map>
 #include <vector>
@@ -70,7 +79,7 @@ struct RdmaRwWork;
 typedef std::function<void(RdmaRwWork *, RdmaConnection*)> rdma_rw_work_func_t;
 
 struct RdmaRwWork{
-    using RdmaBuffer = ib::RdmaBuffer;
+    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
     std::vector<RdmaBuffer *> rbufs; //bufs num should <= 8.
     std::vector<RdmaBuffer *> lbufs; //must be same num as rbufs.
     bool is_write;
@@ -114,12 +123,10 @@ public:
 
 
 class RdmaWorker{
-    using Chunk = ib::Chunk; 
     MsgContext *mct;
     MsgWorker *owner = nullptr;
     uint64_t poller_id = 0;
     RdmaManager *manager;
-    ib::MemoryManager *memory_manager = nullptr;
     ib::CompletionChannel *tx_cc = nullptr, *rx_cc = nullptr;
     ib::CompletionQueue   *tx_cq = nullptr, *rx_cq = nullptr;
     RdmaTxCqNotifier *tx_notifier = nullptr;
@@ -161,8 +168,6 @@ public:
     int reg_rdma_conn(uint32_t qpn, RdmaConnection *conn);
     RdmaConnection *get_rdma_conn(uint32_t qpn);
     void make_conn_dead(RdmaConnection *conn);
-    int post_chunks_to_rq(std::vector<Chunk *> &chunks, ibv_qp *qp=nullptr);
-    int post_chunks_to_rq(int num, ibv_qp *qp=nullptr);
     int post_rdma_recv_wr_to_srq(std::vector<RdmaRecvWr *> &wrs);
     int post_rdma_recv_wr_to_srq(int n);
     ibv_srq *get_srq() const { return this->srq; }
@@ -171,13 +176,9 @@ public:
     int get_qp_size() const { return qp_conns.size(); }
     MsgWorker *get_owner() const { return this->owner; }
     RdmaManager *get_manager() const { return this->manager; }
-    ib::MemoryManager *get_memory_manager() const { 
-        return this->memory_manager; 
-    }
 };
 
 class RdmaManager{
-    using Chunk = ib::Chunk; 
     MsgContext *mct;
     ib::Infiniband m_ib;
     MsgWorker *owner = nullptr;
@@ -219,7 +220,7 @@ public:
     virtual ListenPort* create_listen_port(NodeAddr *addr) override;
     virtual Connection* connect(NodeAddr *addr) override;
     RdmaManager *get_manager() { return manager; }
-    ib::RdmaBufferAllocator *get_rdma_allocator();
+    BufferAllocator *get_rdma_allocator();
     static RdmaConnection *rdma_conn_cast(Connection *conn){
         auto ttype = conn->get_ttype();
         if(ttype == msg_ttype_t::RDMA){

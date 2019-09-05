@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:06:51
+ */
 #ifndef FLAME_MSG_RDMA_INFINIBAND_H
 #define FLAME_MSG_RDMA_INFINIBAND_H
 
@@ -9,7 +17,6 @@
 #include "msg/internal/msg_buffer.h"
 #include "msg/internal/errno.h"
 #include "msg/msg_def.h"
-#include "MemoryManager.h"
 
 
 namespace flame{
@@ -17,8 +24,6 @@ namespace msg{
 namespace ib{
 
 class Infiniband;
-class MemoryManager;
-class Chunk;
 
 struct IBSYNMsg {
     uint16_t lid;
@@ -298,7 +303,6 @@ class Infiniband{
     uint32_t rx_queue_len = 0;
     uint32_t max_sge;
     uint8_t  ib_physical_port = 0;
-    MemoryManager* memory_manager = nullptr;
     Device *device = nullptr;
     ProtectionDomain *pd = nullptr;
     DeviceList *device_list = nullptr;
@@ -310,8 +314,6 @@ class Infiniband{
     const std::string &device_name;
     uint8_t port_num;
     bool enable_srq = false;
-    int m_post_chunks_to_rq(std::vector<Chunk*> &chunks, void *qp, bool is_srq);
-    int m_post_chunks_to_rq(int num, void *qp, bool is_srq);
 public:
     explicit Infiniband(MsgContext *c);
     ~Infiniband();
@@ -324,14 +326,6 @@ public:
                                     ibv_srq *srq,
                                     ibv_qp_type type);
     ibv_srq* create_shared_receive_queue(uint32_t max_wr);
-    int  post_chunks_to_srq(std::vector<Chunk*> &chunks, ibv_srq *srq);
-    int  post_chunks_to_rq(std::vector<Chunk*> &chunks, ibv_qp *qp);
-    // post rx buffers to srq, return number of buffers actually posted
-    int  post_chunks_to_srq(int num, ibv_srq *srq);
-    int  post_chunks_to_rq(int num, ibv_qp *qp);
-    void post_chunks_to_pool(std::vector<Chunk *> &chunks);
-    void post_chunk_to_pool(Chunk* chunk);
-    int get_buffers(size_t bytes, std::vector<Chunk*> &c);
     CompletionChannel *create_comp_channel(MsgContext *c);
     CompletionQueue *create_comp_queue(MsgContext *c, 
                                                     CompletionChannel *cc=NULL);
@@ -341,7 +335,6 @@ public:
     static int get_ib_syn_msg_len();
     uint16_t get_lid() { return device->get_lid(); }
     ibv_gid get_gid() { return device->get_gid(); }
-    MemoryManager* get_memory_manager() { return memory_manager; }
     Device* get_device() { return device; }
     ProtectionDomain *get_pd() { return pd; }
     int get_async_fd() { return device->ctxt->async_fd; }

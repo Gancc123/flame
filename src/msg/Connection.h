@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 15:34:03
+ */
 #ifndef FLAME_MSG_CONNECTION_H
 #define FLAME_MSG_CONNECTION_H
 

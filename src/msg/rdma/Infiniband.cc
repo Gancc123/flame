@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:06:50
+ */
 #include "Infiniband.h"
 #include "msg/internal/errno.h"
 #include "msg/msg_def.h"
@@ -588,8 +596,6 @@ bool Infiniband::init(){
     ML(mct, info, "device max_srq: {}, max_srq_wr: {}", 
                     dev_attr->max_srq, dev_attr->max_srq_wr);
     ML(mct, info, "max inline data: {}", mct->config->rdma_max_inline_data);
-
-    memory_manager = new MemoryManager(mct, pd);
     
     return true;
 }
@@ -597,7 +603,6 @@ bool Infiniband::init(){
 Infiniband::~Infiniband(){
     if (!initialized)
         return;
-    delete memory_manager;
     delete pd;
     delete device_list;
 }
@@ -626,15 +631,6 @@ ibv_srq* Infiniband::create_shared_receive_queue(uint32_t max_wr){
 }
 
 /**
- * get Chunks from memory_manager.
- * return
- *       number of allocated chunks
- */
-int Infiniband::get_buffers(size_t bytes, std::vector<Chunk*> &c){
-    return get_memory_manager()->get_buffers(bytes, c);
-}
-
-/**
  * Create a new QueuePair. This factory should be used in preference to
  * the QueuePair constructor directly, since this lets derivatives of
  * Infiniband, e.g. MockInfiniband (if it existed),
@@ -656,94 +652,6 @@ QueuePair* Infiniband::create_queue_pair(MsgContext *mct,
         return nullptr;
     }
     return qp;
-}
-
-int Infiniband::post_chunks_to_srq(std::vector<Chunk*> &chunks, ibv_srq *srq){
-    return m_post_chunks_to_rq(chunks, srq, true);
-}
-
-int Infiniband::post_chunks_to_rq(std::vector<Chunk*> &chunks, ibv_qp *qp){
-    return m_post_chunks_to_rq(chunks, qp, false);
-}
-
-int Infiniband::post_chunks_to_srq(int num, ibv_srq *srq){
-    return m_post_chunks_to_rq(num, srq, true);
-}
-
-int Infiniband::post_chunks_to_rq(int num, ibv_qp *qp){
-    return m_post_chunks_to_rq(num, qp, false);
-}
-
-void Infiniband::post_chunks_to_pool(std::vector<Chunk *> &chunks){
-        get_memory_manager()->release_buffers(chunks);
-    }
-    
-void Infiniband::post_chunk_to_pool(Chunk* chunk) {
-    get_memory_manager()->release_buffer(chunk);
-}
-
-int Infiniband::m_post_chunks_to_rq(std::vector<Chunk*> &chunks, 
-                                                        void *qp, bool is_srq){
-    int ret, i = 0, num = chunks.size();
-    std::vector<ibv_sge> isge;
-    isge.resize(num);
-    std::vector<ibv_recv_wr> rx_work_request;
-    rx_work_request.resize(num);
-
-    Chunk *chunk;
-    while (i < num) {
-        chunk = chunks[i];
-
-        isge[i].addr = reinterpret_cast<uint64_t>(chunk->data);
-        isge[i].length = chunk->bytes;
-        isge[i].lkey = chunk->lkey;
-
-        memset(&rx_work_request[i], 0, sizeof(rx_work_request[i]));
-        // stash descriptor ptr
-        rx_work_request[i].wr_id = reinterpret_cast<uint64_t>(chunk);
-        if (i == num - 1) {
-            rx_work_request[i].next = nullptr;
-        } else {
-            rx_work_request[i].next = &rx_work_request[i+1];
-        }
-        rx_work_request[i].sg_list = &isge[i];
-        rx_work_request[i].num_sge = 1;
-        i++;
-    }
-
-    ibv_recv_wr *badworkrequest;
-    if(is_srq){
-        ret = ibv_post_srq_recv((ibv_srq *)qp, &rx_work_request[0], 
-                                                            &badworkrequest);
-        assert(ret == 0);
-    }else{
-        ret = ibv_post_recv((ibv_qp *)qp,  &rx_work_request[0], 
-                                                            &badworkrequest);
-        assert(ret == 0);
-    }
-
-    return num;
-}
-
-int Infiniband::m_post_chunks_to_rq(int num, void *qp, bool is_srq){
-    int ret, i = 0, r = 0;
-
-    Chunk *chunk;
-    std::vector<Chunk *> chunk_list;
-    int bytes = num * get_memory_manager()->get_buffer_size();
-    r = get_memory_manager()->get_buffers(bytes, chunk_list);
-
-    if(r < num){
-        ML(mct, warn, 
-            "WARNING: out of memory. Requested {} rx buffers. Got {}",
-            num, r);
-        if(r == 0)
-            return 0;
-    }
-
-    m_post_chunks_to_rq(chunk_list, qp, is_srq);
-
-    return r;
 }
 
 CompletionChannel *Infiniband::create_comp_channel(MsgContext *c){

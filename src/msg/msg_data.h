@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 16:15:15
+ */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
  * @brief:  消息模块内部数据定义
@@ -21,7 +29,7 @@
 #include <vector>
 
 #ifdef HAVE_RDMA
-    #include "msg/rdma/RdmaMem.h"
+    #include "memzone/rdma/RdmaMem.h"
 #endif
 
 #define M_ENCODE(bl, data) (bl).append(&(data), sizeof(data))
@@ -32,7 +40,7 @@ namespace msg{
 
 #ifdef HAVE_RDMA
 struct msg_rdma_header_d : public MsgData{
-    using RdmaBuffer = ib::RdmaBuffer;
+    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
     uint8_t cnt;
     uint32_t imm_data;
     std::vector<RdmaBuffer *> rdma_bufs;
