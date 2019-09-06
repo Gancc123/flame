@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-06 16:52:47
+ */
 #include "RdmaPrepConn.h"
 #include "RdmaListenPort.h"
 #include "RdmaConnection.h"
@@ -90,7 +98,7 @@ RdmaPrepConn *RdmaPrepConn::create(MsgContext *mct, NodeAddr *addr, uint8_t sl){
         }  
         conn->real_conn = real_conn;
 
-        ib::Infiniband &ib = Stack::get_rdma_stack()->get_manager()->get_ib();
+        ib::Infiniband &ib = Stack::get_rdma_stack()->get_rdma_manager()->get_ib();
         auto &my_msg = real_conn->get_my_msg();
         my_msg.peer_qpn = 0;
 
@@ -201,7 +209,7 @@ int RdmaPrepConn::recv_peer_msg(){
 
 void RdmaPrepConn::read_cb(){
     ML(mct, trace, "RdmaPrepConn status:{}", prep_status_str(status));
-    ib::Infiniband &ib = Stack::get_rdma_stack()->get_manager()->get_ib();
+    ib::Infiniband &ib = Stack::get_rdma_stack()->get_rdma_manager()->get_ib();
     if(!is_server()){
         if(status == PrepStatus::SYNED_MY_MSG){
             recv_peer_msg();

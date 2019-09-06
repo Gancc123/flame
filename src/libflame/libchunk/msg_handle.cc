@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-23 18:31:05
+ * @LastEditTime: 2019-09-06 16:52:12
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -340,7 +340,7 @@ void Msger::on_rdma_env_ready(){
     /*第一次需要传入参数构建全局的RdmaAllocator*/
     MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
     assert(mem_cfg);
-    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
+    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_rdma_manager()->get_ib().get_pd();
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
 };
 } //namespace flame

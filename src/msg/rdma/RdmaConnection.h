@@ -4,14 +4,13 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:13:23
+ * @LastEditTime: 2019-09-06 18:06:05
  */
 #ifndef FLAME_MSG_RDMA_RDMA_CONNECTION_H
 #define FLAME_MSG_RDMA_RDMA_CONNECTION_H
 
 #include "msg/Msg.h"
 #include "msg/Connection.h"
-#include "MemoryManager.h"
 #include "memzone/rdma/RdmaMem.h"
 
 #include <atomic>

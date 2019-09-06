@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:13:58
+ * @LastEditTime: 2019-09-06 16:52:33
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -111,7 +111,7 @@ RdmaConnection::RdmaConnection(MsgContext *mct)
 
 RdmaConnection *RdmaConnection::create(MsgContext *mct, RdmaWorker *w, 
                                                             uint8_t sl){
-    ib::Infiniband &ib = w->get_manager()->get_ib();
+    ib::Infiniband &ib = w->get_rdma_manager()->get_ib();
     auto qp = ib.create_queue_pair(mct, w->get_tx_cq(), w->get_rx_cq(), 
                                                             w->get_srq(),
                                                             IBV_QPT_RC);
@@ -197,7 +197,7 @@ int RdmaConnection::activate(){
     
     ibv_qp_attr qpa;
     int r;
-    ib::Infiniband &ib = rdma_worker->get_manager()->get_ib();
+    ib::Infiniband &ib = rdma_worker->get_rdma_manager()->get_ib();
 
     // now connect up the qps and switch to RTR
     memset(&qpa, 0, sizeof(qpa));
@@ -349,7 +349,7 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
         rdma_worker->get_owner()->post_work(event_fn_post_send, this, wr);
         return;
     }
-    uint32_t tx_queue_len = rdma_worker->get_manager()->get_ib()
+    uint32_t tx_queue_len = rdma_worker->get_rdma_manager()->get_ib()
                                                             .get_tx_queue_len();
     //push wrs to pending_send_wrs.
     if(wr){

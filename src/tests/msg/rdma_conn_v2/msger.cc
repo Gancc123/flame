@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 18:14:48
+ * @LastEditTime: 2019-09-06 16:53:29
  */
 #include "msger.h"
 #include "memzone/rdma_mz.h"
@@ -294,7 +294,7 @@ void Msger::on_rdma_env_ready(){
     /*第一次需要传入参数构建全局的RdmaAllocator*/
     MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
     assert(mem_cfg);
-    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
+    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_rdma_manager()->get_ib().get_pd();
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
 };
 

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:14:14
+ * @LastEditTime: 2019-09-06 17:06:40
  */
 #ifndef FLAME_MSG_RDMA_RDMA_STACK_H
 #define FLAME_MSG_RDMA_RDMA_STACK_H
@@ -139,9 +139,7 @@ public:
     void reap_dead_conns();
     int process_cq_dry_run();
     int process_tx_cq(ibv_wc *wc, int max_cqes);
-    int process_tx_cq_dry_run();
     int process_rx_cq(ibv_wc *wc, int max_cqes);
-    int process_rx_cq_dry_run();
     int reg_rdma_conn(uint32_t qpn, RdmaConnection *conn);
     RdmaConnection *get_rdma_conn(uint32_t qpn);
     void make_conn_dead(RdmaConnection *conn);
@@ -152,7 +150,7 @@ public:
     ib::CompletionQueue *get_rx_cq() const { return rx_cq; }
     int get_qp_size() const { return qp_conns.size(); }
     MsgWorker *get_owner() const { return this->owner; }
-    RdmaManager *get_manager() const { return this->manager; }
+    RdmaManager *get_rdma_manager() const { return this->manager; }
 };
 
 class RdmaManager{
@@ -181,7 +179,6 @@ public:
 
 };
 
-
 class RdmaStack : public Stack{
     MsgContext *mct;
     RdmaManager *manager;
@@ -196,7 +193,7 @@ public:
     virtual int fin() override;
     virtual ListenPort* create_listen_port(NodeAddr *addr) override;
     virtual Connection* connect(NodeAddr *addr) override;
-    RdmaManager *get_manager() { return manager; }
+    RdmaManager *get_rdma_manager() { return manager; }
     BufferAllocator *get_rdma_allocator();
     static RdmaConnection *rdma_conn_cast(Connection *conn){
         auto ttype = conn->get_ttype();

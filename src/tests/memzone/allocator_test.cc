@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-06 16:53:19
+ */
 #include "common/context.h"
 #include "common/log.h"
 #include "util/spdk_common.h"
@@ -38,7 +46,7 @@ static void test_start(void *arg1, void *arg2) {
 
     std::cout << "load config completed.." << std::endl;
 
-    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_manager()->get_ib().get_pd();
+    flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_rdma_manager()->get_ib().get_pd();
 
     //初始化一个RDMA env然后将RDMA的pd作为参数传递给RdmaAllocator。
     BufferAllocator *allocator = new RdmaAllocator(fct, pd, mem_cfg);
