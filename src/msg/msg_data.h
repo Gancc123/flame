@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:15:15
+ * @LastEditTime: 2019-09-05 11:34:57
  */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
@@ -13,7 +13,6 @@
  * @date: 2019-05-16
  * @copyright: Copyright (c) 2019
  * 
- * - msg_rdma_header_d 消息模块rdma头部(使用较少)
  * - msg_declare_id_d 用于建立连接时交换身份信息
  */
 #ifndef FLAME_MSG_MSG_DATA_H
@@ -37,71 +36,6 @@
 
 namespace flame{
 namespace msg{
-
-#ifdef HAVE_RDMA
-struct msg_rdma_header_d : public MsgData{
-    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
-    uint8_t cnt;
-    uint32_t imm_data;
-    std::vector<RdmaBuffer *> rdma_bufs;
-    explicit msg_rdma_header_d(uint8_t c, bool with_imm) 
-    : cnt(c), imm_data(with_imm?1:0) {};
-    
-    void clear(){
-        cnt = 0;
-        imm_data = 0;
-        for(auto buffer : rdma_bufs){
-            delete buffer;
-        }
-        rdma_bufs.clear();
-    }
-
-    virtual size_t size() override {
-        return  (imm_data?sizeof(flame_msg_imm_data_t):0) 
-                    + sizeof(flame_msg_rdma_mr_t) * cnt;
-    }
-
-    virtual int encode(MsgBufferList& bl) override{
-        int total = 0;
-        flame_msg_imm_data_t imm;
-        if(imm_data){
-            imm.imm_data = imm_data;
-            total += M_ENCODE(bl, imm);
-        }
-
-        flame_msg_rdma_mr_t mr;
-        for(int i = 0;i < rdma_bufs.size();++i){
-            mr.addr = rdma_bufs[i]->addr();
-            mr.rkey = rdma_bufs[i]->rkey();
-            mr.len = rdma_bufs[i]->data_len;
-            total += M_ENCODE(bl, mr);
-        }
-        return total;
-    }
-
-    virtual int decode(MsgBufferList::iterator& it) override{
-        int total = 0;
-        flame_msg_imm_data_t imm;
-        if(imm_data){
-            int len = M_DECODE(it, imm);
-            assert(len == sizeof(imm));
-            total += len;
-            imm_data = imm.imm_data;
-        }
-
-        flame_msg_rdma_mr_t mr;
-        for(int i = 0;i < cnt;++i){
-            int len = M_DECODE(it, mr);
-            assert(len == sizeof(mr));
-            total += len;
-            auto buf = new RdmaBuffer(mr.rkey, mr.addr, mr.len);
-            assert(buf);
-            rdma_bufs.push_back(buf);
-        }
-        return total;
-    }
-};
-#endif //HAVE_RDMA
 
 //* 这里没有考虑大小端问题，如果要移植到大端机，此处需修改。
 struct msg_declare_id_d : public MsgData{

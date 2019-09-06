@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:25:37
+ * @LastEditTime: 2019-09-06 16:14:14
  */
 #ifndef FLAME_MSG_RDMA_RDMA_STACK_H
 #define FLAME_MSG_RDMA_RDMA_STACK_H
@@ -75,28 +75,6 @@ class RdmaWorker;
 class RdmaManager;
 class RdmaPrepConn;
 
-struct RdmaRwWork;
-typedef std::function<void(RdmaRwWork *, RdmaConnection*)> rdma_rw_work_func_t;
-
-struct RdmaRwWork{
-    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
-    std::vector<RdmaBuffer *> rbufs; //bufs num should <= 8.
-    std::vector<RdmaBuffer *> lbufs; //must be same num as rbufs.
-    bool is_write;
-    uint32_t imm_data = 0; // 0 means no imm data.
-    int cnt;
-    std::vector<int> failed_indexes;
-    rdma_rw_work_func_t target_func = nullptr;
-
-    virtual ~RdmaRwWork() {}
-
-    virtual void callback(RdmaConnection *conn){
-        if(target_func){
-            target_func(this, conn);
-        }
-    }
-};
-
 class RdmaTxCqNotifier : public EventCallBack{
     RdmaWorker *worker;
 public:
@@ -144,7 +122,6 @@ class RdmaWorker{
     std::atomic<bool> is_fin;
 
     void handle_tx_cqe(ibv_wc *cqe, int n);
-    void handle_rdma_rw_cqe(ibv_wc &wc, RdmaConnection *conn);
     void handle_rx_cqe(ibv_wc *cqe, int n);
     int handle_rx_msg(ibv_wc *cqe, RdmaConnection *conn);
 public:

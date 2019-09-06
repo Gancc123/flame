@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 15:52:22
+ * @LastEditTime: 2019-09-06 16:13:58
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -158,15 +158,9 @@ RdmaConnection::~RdmaConnection(){
     }
 
     std::list<Msg *> msgs;
-    std::list<RdmaRwWork *> rw_works;
     {
         MutexLocker l(send_mutex);
         msgs.swap(msg_list);
-        rw_works.swap(rw_work_list);
-    }
-
-    for(auto work : rw_works){
-        delete work;
     }
 
     for(auto msg : msgs){

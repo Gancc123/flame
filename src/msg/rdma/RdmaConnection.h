@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:15:24
+ * @LastEditTime: 2019-09-06 16:13:23
  */
 #ifndef FLAME_MSG_RDMA_RDMA_CONNECTION_H
 #define FLAME_MSG_RDMA_RDMA_CONNECTION_H
@@ -49,7 +49,6 @@ inline uint64_t sel_sig_wrid_from_num(uint32_t num){
 }
 
 class RdmaWorker;
-struct RdmaRwWork;
 
 class RdmaSendWr;
 class RdmaRecvWr;
@@ -78,7 +77,6 @@ private:
 
     Mutex send_mutex;
     std::list<Msg *> msg_list;
-    std::list<RdmaRwWork *> rw_work_list;
     std::deque<uint32_t> imm_data_list;
 
     //for recv msg

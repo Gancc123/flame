@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:25:42
+ * @LastEditTime: 2019-09-06 16:12:13
  */
 #include "RdmaStack.h"
 #include "Infiniband.h"
@@ -218,46 +218,6 @@ void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
      }
 
      return;
-}
-
-void RdmaWorker::handle_rdma_rw_cqe(ibv_wc &wc, RdmaConnection *conn){
-
-    ML(mct, info, "QP: {} len: {}, wr_id: {:x} {} {}", wc.qp_num,
-                    wc.byte_len, wc.wr_id,
-                    ib::Infiniband::wc_opcode_string(wc.opcode), 
-                    ib::Infiniband::wc_status_to_string(wc.status));
-    
-    RdmaRwWork *work = reinterpret_cast<RdmaRwWork *>(wc.wr_id);
-
-    if (wc.status != IBV_WC_SUCCESS) {
-        if (wc.status == IBV_WC_RETRY_EXC_ERR) {
-            ML(mct, error, "Connection between server and client not"
-                            " working. Disconnect this now");
-        } else if (wc.status == IBV_WC_WR_FLUSH_ERR) {
-            ML(mct, error, "Work Request Flushed Error: this connection's "
-                "qp={} should be down while this WR={:x} still in flight.",
-                wc.qp_num, wc.wr_id);
-        } else if (wc.status == IBV_WC_REM_ACCESS_ERR) {
-            ML(mct, error, "Remote Access Error: qp: {}, wr_id: {:x}", 
-                wc.qp_num, wc.wr_id);
-        } else {
-            ML(mct, error, "send work request returned error for "
-                "buffer({}) status({}): {}",
-                wc.wr_id, wc.status,
-                ib::Infiniband::wc_status_to_string(wc.status));
-        }
-
-        ML(mct, info, "qp state: {}", conn->get_qp_state());
-        conn->fault();
-        work->failed_indexes.push_back(work->lbufs.size() - work->cnt);
-    }
-
-    --work->cnt;
-
-    if(work->cnt == 0){
-        work->callback(conn);
-    }
-
 }
 
 int RdmaWorker::process_tx_cq_dry_run(){
