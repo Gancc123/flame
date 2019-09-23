@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-21 09:36:46
+ */
 /**
  * @file buffer.h
  * @author zhzane (zhzane@outlook.com)
@@ -16,10 +24,13 @@
 #ifndef FLAME_INCLUDE_BUFFER_H
 #define FLAME_INCLUDE_BUFFER_H
 
+#include "common/context.h"
+
 #include <cassert>
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <iostream>
 
 enum BufferTypes {
     BUFF_TYPE_NORMAL    = 0,
@@ -127,6 +138,10 @@ protected:
 class Buffer {
 public:
     Buffer() {}
+    ~Buffer() {
+        FlameContext* fct = FlameContext::get_context();
+        fct->log()->ldebug("Buffer", "Buffer deleted!");
+    }
     Buffer(const std::shared_ptr<BufferPtr>& ptr) : ptr_(ptr) {}
 
     /**
@@ -157,7 +172,7 @@ public:
      * 
      * @return void* 
      */
-    inline void* addr() const { return ptr_->addr(); }
+    inline void* addr() const { assert(ptr_ != nullptr); return ptr_->addr(); }
 
     /**
      * @brief 

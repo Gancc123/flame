@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:52:12
+ * @LastEditTime: 2019-09-21 10:09:10
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -24,16 +24,17 @@ int RdmaWorkRequest::allocate_send_buffer(RdmaWorkRequest* req){
         return 1;
     }
     BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
-    Buffer buffer = allocator->allocate(4096);
-    Buffer data_buffer = allocator->allocate(4096);
-    req->buf_ = buffer;
-    req->sge_[0].addr = (uint64_t)buffer.addr();
+    
+    Buffer* buffer = allocator->allocate_ptr(4096);
+    req->buf_[0] = buffer;
+    req->sge_[0].addr = (uint64_t)buffer->addr();
     req->sge_[0].length = 64;
-    req->sge_[0].lkey = buffer.lkey();
-    req->data_buf_ = data_buffer;
-    req->sge_[1].addr = (uint64_t)data_buffer.addr();
+    req->sge_[0].lkey = buffer->lkey();
+    Buffer* buffer2 = allocator->allocate_ptr(4096);
+    req->buf_[1] = buffer2;
+    req->sge_[1].addr = (uint64_t)buffer2->addr();
     req->sge_[1].length = 4096;
-    req->sge_[1].lkey = data_buffer.lkey();
+    req->sge_[1].lkey = buffer2->lkey();
     return 0;
 }
 
@@ -82,7 +83,7 @@ RdmaWorkRequest* RdmaWorkRequest::create_request(msg::MsgContext* msg_context, M
     if(rc != 0) return nullptr;
     rc = prepare_send_recv(req);
     if(rc != 0) return nullptr;
-    rc = set_command(req, req->buf_.addr());
+    rc = set_command(req, req->buf_[0]->addr());
     if(rc != 0) return nullptr;
     return req;
 }
@@ -182,16 +183,16 @@ void RdmaWorkRequest::run(){
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
                     if(res->get_inline_len() > 0 && res->get_inline_len() <= MAX_INLINE_SIZE){
                         fct->log()->ldebug("inline read !!");
-                        msg_cb.cb_fn(*(Response *)res, (uint64_t)data_buf_.addr(), msg_cb.cb_arg);
+                        msg_cb.cb_fn(*(Response *)res, msg_cb.buffer, msg_cb.cb_arg);
                     }
                     else {
                         fct->log()->ldebug("uninline read !!");
-                        msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
+                        msg_cb.cb_fn(*(Response *)res, msg_cb.buffer, msg_cb.cb_arg);
                     }       
                 }
                 else if(_judge_seq_type(CMD_CHK_IO_WRITE) && msg_cb.cb_fn != nullptr){           //写操作
                     CommonRes* res = new CommonRes((cmd_res_t*)command);
-                    msg_cb.cb_fn(*(Response *)res, msg_cb.buf, msg_cb.cb_arg);
+                    msg_cb.cb_fn(*(Response *)res, msg_cb.buffer, msg_cb.cb_arg);
                 }
                 cb_map.erase(key);
                 status = DESTROY;

@@ -223,7 +223,6 @@ set(msg_rdma_common_srcs)
 if(HAVE_RDMA)
   list(APPEND msg_rdma_common_srcs
     msg/rdma/Infiniband.cc
-    msg/rdma/MemoryManager.cc
     msg/rdma/RdmaListenPort.cc
     msg/rdma/RdmaPrepConn.cc
     msg/rdma/RdmaConnection.cc

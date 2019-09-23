@@ -4,12 +4,13 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 18:05:14
+ * @LastEditTime: 2019-09-09 09:24:36
  */
 #include "Infiniband.h"
 #include "msg/internal/errno.h"
 #include "msg/msg_def.h"
 #include "msg/NetHandler.h"
+#include "msg/internal/msg_config.h"
 
 #include <cstdlib>
 #include <sys/time.h>

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-23 19:46:53
+ * @LastEditTime: 2019-09-22 11:37:24
  */
 #include "libflame/libchunk/libchunk.h"
 
@@ -128,8 +128,8 @@ RdmaWorkRequest* CmdClientStubImpl::get_request(){
 }
 
 void CmdClientStubImpl::_prepare_inline(RdmaWorkRequest& req, uint64_t bufaddr, uint32_t data_len){
-    Buffer inline_data_buf = req.get_data_buf();
-    char* inline_data  = (char*)inline_data_buf.addr();
+    Buffer* inline_data_buf = req.get_inline_buf();
+    char* inline_data  = (char*)inline_data_buf->addr();
     strncpy(inline_data, (char*)bufaddr, data_len);
     (req.get_ibv_send_wr())->num_sge = 2;
 }
@@ -144,7 +144,7 @@ uint32_t CmdClientStubImpl::_get_cq(RdmaWorkRequest& req){
  * @param   
  * @return: 
  */
-int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t bufaddr, void* cb_arg){
+int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, Buffer* buffer, void* cb_arg){
     ((cmd_t *)req.command)->hdr.cqn = ((ring++)%256);
     msg::Connection* conn = session_[io_addr]->get_conn(msg::msg_ttype_t::RDMA);
     msg::RdmaConnection* rdma_conn = msg::RdmaStack::rdma_conn_cast(conn);
@@ -152,12 +152,13 @@ int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd((cmd_t *)req.command);
         if(write_cmd->get_inline_data_len() > 0){
             uint32_t data_len = write_cmd->get_ma_len();
-            _prepare_inline(req, bufaddr, data_len);
+            _prepare_inline(req, (uint64_t)buffer->addr(), data_len);
         }
     }
+    req.set_data_buf(buffer);
     struct MsgCallBack msg_cb;
     msg_cb.cb_fn    = cb_fn;
-    msg_cb.buf      = bufaddr;   //此处的bufaddr可能被inline过来的addr代替
+    msg_cb.buffer   = req.get_data_buf(); 
     msg_cb.cb_arg   = cb_arg;
     uint32_t cq = _get_cq(req);
     msg_cb_map_.insert(std::map<uint32_t, MsgCallBack>::value_type (cq, msg_cb));

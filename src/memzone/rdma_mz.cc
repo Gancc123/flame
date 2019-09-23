@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-10 17:37:00
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-10 17:37:00
+ */
 #include "memzone/rdma_mz.h"
 #include "memzone/rdma/RdmaMem.h"
 #include "msg/rdma/Infiniband.h"
@@ -38,7 +46,7 @@ Buffer* RdmaAllocator::allocate_ptr(size_t sz) {
     if(allocator_ctx){
         rb = allocator_ctx->alloc(sz);
     }
-    return rb == nullptr ? new Buffer() : 
+    return rb == nullptr ? nullptr : 
                        new Buffer(std::shared_ptr<BufferPtr>(new RdmaBufferPtr(rb, this)));
 }
 

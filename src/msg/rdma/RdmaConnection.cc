@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:52:33
+ * @LastEditTime: 2019-09-09 10:17:41
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -103,10 +103,7 @@ public:
 RdmaConnection::RdmaConnection(MsgContext *mct)
 :Connection(mct),
  status(RdmaStatus::INIT),
- is_dead_pending(false),
- send_mutex(MUTEX_TYPE_ADAPTIVE_NP),
- recv_cur_msg_header_buffer(sizeof(flame_msg_header_t)){
-
+ is_dead_pending(false){
 }
 
 RdmaConnection *RdmaConnection::create(MsgContext *mct, RdmaWorker *w, 
@@ -156,22 +153,6 @@ RdmaConnection::~RdmaConnection(){
         delete qp;
         qp = nullptr;
     }
-
-    std::list<Msg *> msgs;
-    {
-        MutexLocker l(send_mutex);
-        msgs.swap(msg_list);
-    }
-
-    for(auto msg : msgs){
-        msg->put();
-    }
-    
-    if(recv_cur_msg){
-        recv_cur_msg->put();
-        recv_cur_msg = nullptr;
-    }
-
 }
 
 ssize_t RdmaConnection::send_msg(Msg *msg, bool more){
@@ -302,7 +283,6 @@ void RdmaConnection::close(){
         && status == RdmaStatus::ERROR){
         return;
     }
-
     if(status == RdmaStatus::CAN_WRITE){
         fin_v2(false);
     }

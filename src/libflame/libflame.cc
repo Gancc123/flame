@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-05-13 09:35:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 11:00:47
+ * @LastEditTime: 2019-09-21 09:56:27
  */
 #include "include/libflame.h"
 
@@ -41,13 +41,14 @@ struct cb_arg{
     void* arg;
 };
 
-void sub_cb(const Response& res, uint64_t bufaddr, void* arg1){
+void sub_cb(const Response& res, Buffer* buffer, void* arg1){
     struct cb_arg* arg= (struct cb_arg *)arg1;
     (*(arg->sub))++;
     if(*(arg->sub) == arg->total_completion){
         *(arg->sub) = 0;
-        if(arg->cb != nullptr)
-            arg->cb(bufaddr, arg->arg, 0); //*默认状态都是成功
+        if(arg->cb != nullptr){
+            arg->cb((uint64_t)buffer->addr(), arg->arg, 0); //*默认状态都是成功
+        }   
     }
 }
 
@@ -80,7 +81,7 @@ int FlameHandlers::id_2_vol_name(uint64_t volume_id, std::string& group_name, st
     }
 }
 
-int FlameHandlers::read(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int FlameHandlers::read(const std::string& vg_name, const std::string& vol_name, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
     int rc = 0;
     uint64_t volume_id;
@@ -91,7 +92,7 @@ int FlameHandlers::read(const std::string& vg_name, const std::string& vol_name,
     return 0;
 }
 
-int FlameHandlers::write(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int FlameHandlers::write(const std::string& vg_name, const std::string& vol_name, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(len % 4096 != 0) return -1;
     int rc = 0;
     uint64_t volume_id;
@@ -152,7 +153,7 @@ int Volume::_vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOf
 }
 
 // async io call
-int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
     _vol_to_chunks(offset, len, chunk_positions);
@@ -176,12 +177,12 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffe
         MemoryArea* memory_read = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
         ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, chunk_id, offset_inner, length_inner, *memory_read); 
-        cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, start_addr, (void*)sub_arg);
+        cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, &buff, (void*)sub_arg);
         addr += length_inner;
     }
     return 0;
 }
-int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
+int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg){
     if(buff.size() < len) return -1;
     std::vector<ChunkOffLen> chunk_positions;
     _vol_to_chunks(offset, len, chunk_positions);
@@ -204,7 +205,7 @@ int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buff
         MemoryArea* memory_write = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, chunk_id, offset_inner, length_inner, *memory_write, 1); 
-        cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, sub_cb, start_addr, (void*)sub_arg);
+        cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, sub_cb, &buff, (void*)sub_arg);
         addr += length_inner;
     }
     return 0;

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 18:06:05
+ * @LastEditTime: 2019-09-09 09:28:32
  */
 #ifndef FLAME_MSG_RDMA_RDMA_CONNECTION_H
 #define FLAME_MSG_RDMA_RDMA_CONNECTION_H
@@ -67,25 +67,13 @@ public:
         CLOSED
     };
 private:
-    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
     ib::QueuePair *qp = nullptr;
     ib::IBSYNMsg peer_msg;
     ib::IBSYNMsg my_msg;
     bool active = false;
     RdmaWorker *rdma_worker = nullptr;
-
-    Mutex send_mutex;
-    std::list<Msg *> msg_list;
-    std::deque<uint32_t> imm_data_list;
-
     //for recv msg
-    std::list<ibv_wc> recv_wc;
-    uint32_t recv_cur_msg_offset = 0;
-    MsgBuffer recv_cur_msg_header_buffer;
-    Msg *recv_cur_msg = nullptr;
-
     std::atomic<RdmaStatus> status;
-
     //for RdmaConnection V2
     std::deque<RdmaSendWr *> pending_send_wrs;
     void fin_v2(bool do_close);//
@@ -96,10 +84,7 @@ public:
     virtual msg_ttype_t get_ttype() override { return msg_ttype_t::RDMA; }
     virtual ssize_t send_msg(Msg *msg, bool more=false) override;
     virtual Msg* recv_msg() override {};
-    virtual int pending_msg() override {
-        MutexLocker l(send_mutex);
-        return this->msg_list.size();
-    };
+    virtual int pending_msg() override {};
     virtual bool is_connected() override{
         return status == RdmaStatus::CAN_WRITE;
     }

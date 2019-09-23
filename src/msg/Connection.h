@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 15:34:03
+ * @LastEditTime: 2019-09-09 10:40:48
  */
 #ifndef FLAME_MSG_CONNECTION_H
 #define FLAME_MSG_CONNECTION_H
@@ -50,36 +50,6 @@ public:
      */
     virtual ssize_t send_msg(Msg *msg, bool more=false) = 0;
     virtual Msg* recv_msg() = 0;
-
-    /**
-     * put msgs to send_msg_list, and actually send if possible
-     * @param msg: maybe be nullptr.
-     * @return: total bytes actually sended. when < 0, error.
-     */
-    virtual ssize_t send_msgs(std::list<Msg *> &msgs){
-        ssize_t total = 0;
-        while(!msgs.empty()){
-            ssize_t r = send_msg(msgs.front());
-            if(r >= 0){
-                total += r;
-                msgs.pop_front();
-            }else{
-                total = -1;
-                break;
-            }
-        }
-        return total;
-    }
-
-    virtual void post_submit() {
-        if(submit_pending || !owner) return;
-        submit_pending = true;
-        owner->post_work([this](){
-            ML(this->mct, trace, "in post_submit()");
-            submit_pending = false;
-            this->send_msg(nullptr, false);
-        });
-    }
 
     /**
      * the number of msgs to be sended. 

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:43
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 10:15:00
+ * @LastEditTime: 2019-09-10 11:40:15
  */
 /**
  * @file cmd.h
@@ -27,6 +27,7 @@
 #include <map>
 
 #include "msg/msg_core.h"
+#include "include/buffer.h"
 #include "libflame/libchunk/log_libchunk.h"
 
 #ifdef __cplusplus
@@ -492,12 +493,12 @@ protected:
     virtual ~MemoryArea() {}
 };//class MemoryArea
 
-typedef void(*cmd_cb_fn_t)(const Response& res, uint64_t bufaddr, void* arg);
+typedef void(*cmd_cb_fn_t)(const Response& res, Buffer* buffer, void* arg);
 class RdmaWorkRequest;
 
 struct MsgCallBack{
     cmd_cb_fn_t cb_fn;
-    uint64_t buf;
+    Buffer* buffer;
     void* cb_arg;
 };
 
@@ -505,7 +506,7 @@ class CmdClientStub {
 public:
     virtual std::map<uint32_t, MsgCallBack>& get_cb_map() = 0;
 
-    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, uint64_t buf, void* cb_arg) = 0;
+    virtual int submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, Buffer* buffer, void* cb_arg) = 0;
 protected:
     CmdClientStub() {}
     ~CmdClientStub() {}
