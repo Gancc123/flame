@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-05-13 09:35:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 09:56:27
+ * @LastEditTime: 2019-09-23 10:20:25
  */
 #include "include/libflame.h"
 
@@ -48,6 +48,7 @@ void sub_cb(const Response& res, Buffer* buffer, void* arg1){
         *(arg->sub) = 0;
         if(arg->cb != nullptr){
             arg->cb((uint64_t)buffer->addr(), arg->arg, 0); //*默认状态都是成功
+            delete(buffer); //* 释放target端内存*/
         }   
     }
 }
