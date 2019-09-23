@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-05 10:08:36
+ * @LastEditTime: 2019-09-09 16:18:42
  */
 /**
  * @author: hzy (lzmyhzy@gmail.com)
@@ -31,7 +31,6 @@
 #include "msg_data.h"
 #include "msg_context.h"
 #include "MsgManager.h"
-#include "Message.h"
 #include "Msg.h"
 #include "MsgWorker.h"
 #include "Session.h"

@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-13 15:07:59
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-23 19:44:31
+ * @LastEditTime: 2019-09-10 17:32:28
  */
 
 #include "libflame/libchunk/chunk_cmd_service.h"
@@ -66,19 +66,23 @@ int ReadCmdService::call(RdmaWorkRequest *req){
     if(req->status == RdmaWorkRequest::Status::RECV_DONE){                 //**创建rdma内存，并从底层chunkstore异步读取数据到指定的rdma buffer**//      
         ChunkReadCmd* cmd_chunk_read = new ChunkReadCmd((cmd_t *)req->command);
         cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_read->get_content())->ma;  
-        BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
-        Buffer lbuf = allocator->allocate(cmd_chunk_read->get_ma_len()); //获取一片本地的内存，用于存放数据
-        req->data_buf_ = lbuf;
         //read，将数据读到lbuf，io_cb_func的回调在这里实际上是在disk->lbuf后执行req->run()，只是此时req->status = EXEC_DONE
         std::shared_ptr<ChunkStore> chunkstore = cct_->cs();
         std::shared_ptr<Chunk> chunk = chunkstore->chunk_open(cmd_chunk_read->get_chk_id());
         Iocb* iocb = new Iocb(chunkstore, chunk, req);
-        _chunk_io_rw(chunk, cmd_chunk_read->get_off(), cmd_chunk_read->get_ma_len(), (uint64_t)lbuf.addr(), IO_READ, io_cb_func, iocb); 
+        BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
+        if(cmd_chunk_read->get_ma_len() > MAX_INLINE_SIZE){
+            Buffer* lbuf = allocator->allocate_ptr(cmd_chunk_read->get_ma_len()); //获取一片本地的内存，用于存放数据
+            req->data_buf_ = lbuf;
+            _chunk_io_rw(chunk, cmd_chunk_read->get_off(), cmd_chunk_read->get_ma_len(), (uint64_t)req->data_buf_->addr(), IO_READ, io_cb_func, iocb); 
+        } else {
+            _chunk_io_rw(chunk, cmd_chunk_read->get_off(), cmd_chunk_read->get_ma_len(), (uint64_t)req->buf_[1]->addr(), IO_READ, io_cb_func, iocb); 
+        }   
     }else if(req->status == RdmaWorkRequest::Status::EXEC_DONE){           //** 进行RDMA WRITE(server write到client相当于读)**//
         ChunkReadCmd* cmd_chunk_read = new ChunkReadCmd((cmd_t *)req->command);
         cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_read->get_content())->ma; 
         if(cmd_chunk_read->get_ma_len() > MAX_INLINE_SIZE){   //**WRITE
-            _set_seg(req->sge_[0], (uint64_t)req->data_buf_.addr(), req->data_buf_.size(), req->data_buf_.lkey());
+            _set_seg(req->sge_[0], (uint64_t)req->data_buf_->addr(), req->data_buf_->size(), req->data_buf_->lkey());
             _prepare_write(req, ma);
             rdma_conn->post_send(req);
         }else{//**inline数据直接连带response SEND过去
@@ -86,19 +90,20 @@ int ReadCmdService::call(RdmaWorkRequest *req){
             cmd_t cmd = *(cmd_t *)req->command;
             ChunkReadCmd* read_cmd = new ChunkReadCmd(&cmd); 
             cmd_res_t* cmd_res = (cmd_res_t *)req->command;
-            ChunkReadRes* res = new ChunkReadRes(cmd_res, *read_cmd, rc, req->data_buf_.addr(), cmd_chunk_read->get_ma_len()); 
-            _set_seg(req->sge_[0], (uint64_t)req->buf_.addr(), 64, req->buf_.lkey());
-            _set_seg(req->sge_[1], (uint64_t)req->data_buf_.addr(), cmd_chunk_read->get_ma_len(), req->data_buf_.lkey());
+            ChunkReadRes* res = new ChunkReadRes(cmd_res, *read_cmd, rc, req->buf_[0]->addr(), cmd_chunk_read->get_ma_len()); 
+            _set_seg(req->sge_[0], (uint64_t)req->buf_[0]->addr(), 64, req->buf_[0]->lkey());
+            _set_seg(req->sge_[1], (uint64_t)req->buf_[1]->addr(), MAX_INLINE_SIZE, req->buf_[1]->lkey());
             _prepare_send(req, 2);
             rdma_conn->post_send(req);
         }
-    }else if(req->status == RdmaWorkRequest::Status::WRITE_DONE){       
+    }else if(req->status == RdmaWorkRequest::Status::WRITE_DONE){ 
+        if(req->get_data_buf()) delete(req->get_data_buf());    
         cmd_rc_t rc = 0;
         cmd_t cmd = *(cmd_t *)req->command;
         ChunkReadCmd* read_cmd = new ChunkReadCmd(&cmd); 
         cmd_res_t* cmd_res = (cmd_res_t *)req->command;
         ChunkReadRes* res = new ChunkReadRes(cmd_res, *read_cmd, rc); 
-        _set_seg(req->sge_[0], (uint64_t)req->buf_.addr(), 64, req->buf_.lkey());
+        _set_seg(req->sge_[0], (uint64_t)req->buf_[0]->addr(), 64, req->buf_[0]->lkey());
         _prepare_send(req, 1);
         rdma_conn->post_send(req);
     }else{                              
@@ -168,15 +173,15 @@ int WriteCmdService::call(RdmaWorkRequest *req){
             //write，将数据写到disk，io_cb_func的回调在这里实际上是在disk->lbuf后执行req->run()，只是此时req->status = EXEC_DONE
             std::shared_ptr<Chunk> chunk = cct_->cs()->chunk_open(cmd_chunk_write->get_chk_id());
             Iocb* iocb = new Iocb(cct_->cs(), chunk, req);
-            _chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->data_buf_.addr(),\
+            _chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->buf_[1]->addr(),\
                             IO_WRITE, io_cb_func, iocb); 
             return 0;
         }
         cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_write->get_content())->ma;   
         BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
-        Buffer lbuf = allocator->allocate(cmd_chunk_write->get_ma_len()); //获取一片本地的内存，用于存放数据
+        Buffer* lbuf = allocator->allocate_ptr(cmd_chunk_write->get_ma_len()); //获取一片本地的内存，用于存放数据
         req->data_buf_ = lbuf;
-        _set_seg(req->sge_[0], (uint64_t)req->data_buf_.addr(), req->data_buf_.size(), req->data_buf_.lkey());
+        _set_seg(req->sge_[0], (uint64_t)req->data_buf_->addr(), req->data_buf_->size(), req->data_buf_->lkey());
         _prepare_read(req, ma);
         rdma_conn->post_send(req);
     }else if(req->status == RdmaWorkRequest::Status::READ_DONE){           //** 进行RDMA WRITE(server write到client相当于读)**//
@@ -184,7 +189,7 @@ int WriteCmdService::call(RdmaWorkRequest *req){
         //write，将数据写到disk，io_cb_func的回调在这里实际上是在disk->lbuf后执行req->run()，只是此时req->status = EXEC_DONE
         std::shared_ptr<Chunk> chunk = cct_->cs()->chunk_open(cmd_chunk_write->get_chk_id());
         Iocb* iocb = new Iocb(cct_->cs(), chunk, req);
-        _chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->data_buf_.addr(),\
+        _chunk_io_rw(chunk, cmd_chunk_write->get_off(), cmd_chunk_write->get_ma_len(), (uint64_t)req->data_buf_->addr(),\
                             IO_WRITE, io_cb_func, iocb); 
     }else if(req->status == RdmaWorkRequest::Status::EXEC_DONE){      
         cmd_rc_t rc = 0;
@@ -192,7 +197,7 @@ int WriteCmdService::call(RdmaWorkRequest *req){
         ChunkWriteCmd* write_cmd = new ChunkWriteCmd(&cmd); 
         cmd_res_t* cmd_res = (cmd_res_t *)req->command;
         CommonRes* res = new CommonRes(cmd_res, *write_cmd, rc); 
-        _set_seg(req->sge_[0], (uint64_t)req->buf_.addr(), 64, req->buf_.lkey());
+        _set_seg(req->sge_[0], (uint64_t)req->buf_[0]->addr(), 64, req->buf_[0]->lkey());
         _prepare_send(req, 1);
         rdma_conn->post_send(req);
     }else{                              

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 15:20:04
+ */
 #include "MsgWorker.h"
 #include "internal/errno.h"
 
@@ -78,7 +86,7 @@ ThrMsgWorker::ThrMsgWorker(MsgContext *c, int i)
         throw ErrnoException(-r);
     }
 
-    auto notify_cb = new HandleNotifyCallBack(mct);
+    EventCallBack* notify_cb = new HandleNotifyCallBack(mct);
     notify_cb->fd = notify_receive_fd;
     add_event(notify_cb);
     notify_cb->put();

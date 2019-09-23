@@ -1,8 +1,14 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 15:20:04
+ */
 #include "msg_context.h"
 #include "msg_common.h"
-#include "msg/internal/msg_config.h"
 #include "Msg.h"
-#include "Message.h"
 #include "Stack.h"
 #include "MsgManager.h"
 

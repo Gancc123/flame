@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 15:52:22
+ * @LastEditTime: 2019-09-09 10:17:41
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -103,15 +103,12 @@ public:
 RdmaConnection::RdmaConnection(MsgContext *mct)
 :Connection(mct),
  status(RdmaStatus::INIT),
- is_dead_pending(false),
- send_mutex(MUTEX_TYPE_ADAPTIVE_NP),
- recv_cur_msg_header_buffer(sizeof(flame_msg_header_t)){
-
+ is_dead_pending(false){
 }
 
 RdmaConnection *RdmaConnection::create(MsgContext *mct, RdmaWorker *w, 
                                                             uint8_t sl){
-    ib::Infiniband &ib = w->get_manager()->get_ib();
+    ib::Infiniband &ib = w->get_rdma_manager()->get_ib();
     auto qp = ib.create_queue_pair(mct, w->get_tx_cq(), w->get_rx_cq(), 
                                                             w->get_srq(),
                                                             IBV_QPT_RC);
@@ -156,28 +153,6 @@ RdmaConnection::~RdmaConnection(){
         delete qp;
         qp = nullptr;
     }
-
-    std::list<Msg *> msgs;
-    std::list<RdmaRwWork *> rw_works;
-    {
-        MutexLocker l(send_mutex);
-        msgs.swap(msg_list);
-        rw_works.swap(rw_work_list);
-    }
-
-    for(auto work : rw_works){
-        delete work;
-    }
-
-    for(auto msg : msgs){
-        msg->put();
-    }
-    
-    if(recv_cur_msg){
-        recv_cur_msg->put();
-        recv_cur_msg = nullptr;
-    }
-
 }
 
 ssize_t RdmaConnection::send_msg(Msg *msg, bool more){
@@ -203,7 +178,7 @@ int RdmaConnection::activate(){
     
     ibv_qp_attr qpa;
     int r;
-    ib::Infiniband &ib = rdma_worker->get_manager()->get_ib();
+    ib::Infiniband &ib = rdma_worker->get_rdma_manager()->get_ib();
 
     // now connect up the qps and switch to RTR
     memset(&qpa, 0, sizeof(qpa));
@@ -308,7 +283,6 @@ void RdmaConnection::close(){
         && status == RdmaStatus::ERROR){
         return;
     }
-
     if(status == RdmaStatus::CAN_WRITE){
         fin_v2(false);
     }
@@ -355,7 +329,7 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
         rdma_worker->get_owner()->post_work(event_fn_post_send, this, wr);
         return;
     }
-    uint32_t tx_queue_len = rdma_worker->get_manager()->get_ib()
+    uint32_t tx_queue_len = rdma_worker->get_rdma_manager()->get_ib()
                                                             .get_tx_queue_len();
     //push wrs to pending_send_wrs.
     if(wr){

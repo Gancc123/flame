@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-09 09:25:38
+ */
 #include "RdmaPrepConn.h"
 #include "RdmaListenPort.h"
 #include "RdmaConnection.h"
@@ -9,6 +17,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cassert>
+#include <unistd.h>
 
 namespace flame{
 namespace msg{
@@ -65,7 +74,7 @@ RdmaPrepConn *RdmaPrepConn::create(MsgContext *mct, int cfd){
     prep_conn->fd = cfd;
 
     auto rdma_worker = 
-        Stack::get_rdma_stack()->get_manager()->get_lightest_load_rdma_worker();
+        Stack::get_rdma_stack()->get_rdma_manager()->get_lightest_load_rdma_worker();
     auto real_conn = RdmaConnection::create(mct, rdma_worker);
     if(!real_conn){
         return nullptr;
@@ -81,7 +90,7 @@ RdmaPrepConn *RdmaPrepConn::create(MsgContext *mct, NodeAddr *addr, uint8_t sl){
         auto conn = new RdmaPrepConn(mct);
         conn->fd = fd;
 
-        auto rdma_worker = Stack::get_rdma_stack()->get_manager()
+        auto rdma_worker = Stack::get_rdma_stack()->get_rdma_manager()
                                             ->get_lightest_load_rdma_worker();
         auto real_conn = RdmaConnection::create(mct, rdma_worker, sl);
         if(!real_conn){
@@ -90,7 +99,7 @@ RdmaPrepConn *RdmaPrepConn::create(MsgContext *mct, NodeAddr *addr, uint8_t sl){
         }  
         conn->real_conn = real_conn;
 
-        ib::Infiniband &ib = Stack::get_rdma_stack()->get_manager()->get_ib();
+        ib::Infiniband &ib = Stack::get_rdma_stack()->get_rdma_manager()->get_ib();
         auto &my_msg = real_conn->get_my_msg();
         my_msg.peer_qpn = 0;
 
@@ -201,7 +210,7 @@ int RdmaPrepConn::recv_peer_msg(){
 
 void RdmaPrepConn::read_cb(){
     ML(mct, trace, "RdmaPrepConn status:{}", prep_status_str(status));
-    ib::Infiniband &ib = Stack::get_rdma_stack()->get_manager()->get_ib();
+    ib::Infiniband &ib = Stack::get_rdma_stack()->get_rdma_manager()->get_ib();
     if(!is_server()){
         if(status == PrepStatus::SYNED_MY_MSG){
             recv_peer_msg();

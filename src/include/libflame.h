@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-05 11:12:03
+ * @LastEditTime: 2019-09-10 11:47:53
  *
  * @copyright Copyright (c) 2019
  * 
@@ -101,8 +101,8 @@ public:
     }
 
     // async io call
-    int read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    int write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
     int reset(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
     int flush(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, libflame_callback cb, void* arg);
 
@@ -141,8 +141,8 @@ public:
     int vol_name_2_id(const std::string& group_name, const std::string& volume_name, uint64_t& volume_id);
     /**注意：下列函数均为获得了Volume句柄后进行的操作**/
     // Volume async io call
-    int read (const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
-    int write(const std::string& vg_name, const std::string& vol_name, const Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int read (const std::string& vg_name, const std::string& vol_name, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
+    int write(const std::string& vg_name, const std::string& vol_name, Buffer& buff, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
     int reset(const std::string& vg_name, const std::string& vol_name, uint64_t offset, uint64_t len, libflame_callback cb, void* arg);
     int flush(const std::string& vg_name, const std::string& vol_name, libflame_callback cb, void* arg);
 

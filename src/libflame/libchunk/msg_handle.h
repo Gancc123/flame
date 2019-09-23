@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:43
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-23 16:37:48
+ * @LastEditTime: 2019-09-21 10:07:59
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 #define FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
@@ -43,8 +43,8 @@ private:
     ibv_sge sge_[2];
     ibv_send_wr send_wr_;
     ibv_recv_wr recv_wr_;
-    Buffer buf_;
-    Buffer data_buf_;
+    Buffer* buf_[2];
+    Buffer* data_buf_;
     CmdService* service_;
     RdmaWorkRequest(msg::MsgContext *c, Msger *m)
     : msg_context_(c), msger_(m), status(FREE), conn(nullptr){}
@@ -65,9 +65,20 @@ public:
     inline virtual ibv_recv_wr *get_ibv_recv_wr() override{
         return &recv_wr_;
     }
-    inline virtual Buffer& get_data_buf(){
+    inline virtual Buffer* get_data_buf(){
         return data_buf_;
     }
+    inline virtual void set_data_buf(Buffer* buffer){
+        data_buf_ = buffer;
+        return;
+    }
+    inline virtual Buffer* get_request_buf(){
+        return buf_[0];
+    }
+    inline virtual Buffer* get_inline_buf(){
+        return buf_[1];
+    }
+    
     virtual void on_send_done(ibv_wc &cqe) override;
     virtual void on_send_cancelled(bool err, int eno=0) override;
     virtual void on_recv_done(msg::RdmaConnection *conn, ibv_wc &cqe) override;

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:25:37
+ * @LastEditTime: 2019-09-06 17:06:40
  */
 #ifndef FLAME_MSG_RDMA_RDMA_STACK_H
 #define FLAME_MSG_RDMA_RDMA_STACK_H
@@ -75,28 +75,6 @@ class RdmaWorker;
 class RdmaManager;
 class RdmaPrepConn;
 
-struct RdmaRwWork;
-typedef std::function<void(RdmaRwWork *, RdmaConnection*)> rdma_rw_work_func_t;
-
-struct RdmaRwWork{
-    using RdmaBuffer = flame::memory::ib::RdmaBuffer;
-    std::vector<RdmaBuffer *> rbufs; //bufs num should <= 8.
-    std::vector<RdmaBuffer *> lbufs; //must be same num as rbufs.
-    bool is_write;
-    uint32_t imm_data = 0; // 0 means no imm data.
-    int cnt;
-    std::vector<int> failed_indexes;
-    rdma_rw_work_func_t target_func = nullptr;
-
-    virtual ~RdmaRwWork() {}
-
-    virtual void callback(RdmaConnection *conn){
-        if(target_func){
-            target_func(this, conn);
-        }
-    }
-};
-
 class RdmaTxCqNotifier : public EventCallBack{
     RdmaWorker *worker;
 public:
@@ -144,7 +122,6 @@ class RdmaWorker{
     std::atomic<bool> is_fin;
 
     void handle_tx_cqe(ibv_wc *cqe, int n);
-    void handle_rdma_rw_cqe(ibv_wc &wc, RdmaConnection *conn);
     void handle_rx_cqe(ibv_wc *cqe, int n);
     int handle_rx_msg(ibv_wc *cqe, RdmaConnection *conn);
 public:
@@ -162,9 +139,7 @@ public:
     void reap_dead_conns();
     int process_cq_dry_run();
     int process_tx_cq(ibv_wc *wc, int max_cqes);
-    int process_tx_cq_dry_run();
     int process_rx_cq(ibv_wc *wc, int max_cqes);
-    int process_rx_cq_dry_run();
     int reg_rdma_conn(uint32_t qpn, RdmaConnection *conn);
     RdmaConnection *get_rdma_conn(uint32_t qpn);
     void make_conn_dead(RdmaConnection *conn);
@@ -175,7 +150,7 @@ public:
     ib::CompletionQueue *get_rx_cq() const { return rx_cq; }
     int get_qp_size() const { return qp_conns.size(); }
     MsgWorker *get_owner() const { return this->owner; }
-    RdmaManager *get_manager() const { return this->manager; }
+    RdmaManager *get_rdma_manager() const { return this->manager; }
 };
 
 class RdmaManager{
@@ -204,7 +179,6 @@ public:
 
 };
 
-
 class RdmaStack : public Stack{
     MsgContext *mct;
     RdmaManager *manager;
@@ -219,7 +193,7 @@ public:
     virtual int fin() override;
     virtual ListenPort* create_listen_port(NodeAddr *addr) override;
     virtual Connection* connect(NodeAddr *addr) override;
-    RdmaManager *get_manager() { return manager; }
+    RdmaManager *get_rdma_manager() { return manager; }
     BufferAllocator *get_rdma_allocator();
     static RdmaConnection *rdma_conn_cast(Connection *conn){
         auto ttype = conn->get_ttype();

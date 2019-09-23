@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-21 09:43:23
+ */
 #include "memzone/rdma/RdmaMem.h"
 #include "memzone/rdma/rdma_mz_log.h"
 #include "util/spdk_common.h"
@@ -95,6 +103,7 @@ int RdmaBufferAllocator::fin(){
 }
 
 RdmaBuffer *RdmaBufferAllocator::alloc(size_t s){
+    FlameContext* flame_context = FlameContext::get_context();
     if(s > (1ULL << max_level)){ // too large
         return nullptr;
     }
@@ -123,6 +132,7 @@ retry:
     }
 
     if(!p){
+        flame_context->log()->ldebug("no men can alloc");
         return nullptr; // no men can alloc
     }
 
@@ -130,6 +140,7 @@ retry:
     if(!rb){
         MutexLocker ml(mutex_of_allocator(ap));
         ap->free(p);
+        flame_context->log()->ldebug("rb alloc error");
         return nullptr;
     }
 
@@ -139,7 +150,8 @@ retry:
 void RdmaBufferAllocator::free(RdmaBuffer *buf){
     if(!buf) return;
     if(buf->allocator()){
-        MutexLocker ml(mutex_of_allocator(buf->allocator()));
+        BuddyAllocator* buddy_allocator = buf->allocator();
+        MutexLocker mutex_locker(mutex_of_allocator(buddy_allocator));
         buf->allocator()->free(buf->buffer(), buf->size());
     }
     delete buf;

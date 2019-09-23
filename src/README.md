@@ -1,3 +1,11 @@
+<!--
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:17:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 15:17:04
+ -->
 Flame 源码目录说明
 -----------------
 组件大多采用接口和实现分离的方式，`接口`即组件所需要提供的功能，`实现`则指采用某种方式实现功能的方案（理解就好，非常拗口）
@@ -58,7 +66,6 @@ Flame 源码目录说明
     - `socket/` : socket实现(TCP)
     - `Connection.h` & `Connection.cc` : Connection抽象类
     - `ListenPort.h` : ListenPort抽象类
-    - `Message.h` : 调用消息模块时的数据单元，数据buffer待补全
     - `msg_common.h` : 内部公用头文件
     - `msg_context.h` & `msg_context.cc` : 消息模块上下文，管理整个消息模块的生命周期和相关资源
     - `msg_core.h` : 调用消息模块时，只需include此文件即可
