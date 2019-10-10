@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 10:09:10
+ * @LastEditTime: 2019-09-29 15:58:00
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -60,7 +60,7 @@ int RdmaWorkRequest::set_command(RdmaWorkRequest* req, void* addr){
     return 0;
 }
 
-uint32_t RdmaWorkRequest::_get_cqgcqn(){
+uint32_t RdmaWorkRequest::_get_command_queue_n(){
     //TODO 判断command是否有值
     return ((cmd_res_t*)command)->hdr.cqg << 16 | ((cmd_res_t*)command)->hdr.cqn;
 }
@@ -177,7 +177,7 @@ void RdmaWorkRequest::run(){
             case RECV_DONE:{
                 CmdClientStub* cmd_clientstub = msger_->get_client_stub();
                 std::map<uint32_t, MsgCallBack>& cb_map = cmd_clientstub->get_cb_map();
-                uint32_t key = _get_cqgcqn();
+                uint32_t key = _get_command_queue_n();
                 MsgCallBack msg_cb = cb_map[key];
                 if(_judge_seq_type(CMD_CHK_IO_READ) && msg_cb.cb_fn != nullptr){  //读操作
                     ChunkReadRes* res = new ChunkReadRes((cmd_res_t*)command);
@@ -295,10 +295,11 @@ RdmaWorkRequest* RdmaWorkRequestPool::alloc_req(){
  * @name: free_req
  * @describtions: 内部的释放是将req放入reqs_free_供循环利用
  * @param   RdmaWorkRequest*        req         放回reqs_free_的req指针
+ * 注意此处不能释放data_buf_，因为要被libflame是收到所有的res后处理才能释放
  * @return: 
  */
 void RdmaWorkRequestPool::free_req(RdmaWorkRequest* req){
-    MutexLocker l(mutex_);
+    MutexLocker l(mutex_); 
     reqs_free_.push_back(req);
 }
 /**

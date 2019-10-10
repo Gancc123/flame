@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-10 11:47:53
+ * @LastEditTime: 2019-09-25 11:30:46
  *
  * @copyright Copyright (c) 2019
  * 
@@ -40,6 +40,7 @@ struct  Config {
 
 //对单一chunk访问的结构
 struct ChunkOffLen {
+    uint64_t    chunk_index;
     uint64_t    chunk_id;
     uint64_t    offset;
     uint64_t    length;

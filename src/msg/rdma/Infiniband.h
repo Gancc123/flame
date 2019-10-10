@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-04 16:06:51
+ * @LastEditTime: 2019-09-29 09:38:01
  */
 #ifndef FLAME_MSG_RDMA_INFINIBAND_H
 #define FLAME_MSG_RDMA_INFINIBAND_H
@@ -17,6 +17,7 @@
 #include "msg/internal/msg_buffer.h"
 #include "msg/internal/errno.h"
 #include "msg/msg_def.h"
+#include "common/context.h"
 
 
 namespace flame{
@@ -250,6 +251,7 @@ public:
         uint32_t wr_inflight = tx_wr_inflight.load(std::memory_order_relaxed);
         uint32_t real_amt = amt;
         do{
+            mct->fct->log()->ldebug("infiniband", "amt:real_amt:wr_inflight:limit = %d: %d: %d: %d", amt, real_amt, wr_inflight, limit);
             if(wr_inflight + amt > limit){
                 if(partial){
                     assert(wr_inflight <= limit);
@@ -263,10 +265,21 @@ public:
                                                     wr_inflight + real_amt, 
                                                     std::memory_order_release,
                                                     std::memory_order_relaxed));
+        mct->fct->log()->ldebug("infiniband", "amt:real_amt:tx_wr_inflight:limit = %d: %d: %d: %d", amt, real_amt, tx_wr_inflight.load(std::memory_order_relaxed), limit);
         return real_amt;
     }
     void add_tx_wr(uint32_t amt) { tx_wr_inflight += amt; }
-    void dec_tx_wr(uint32_t amt) { tx_wr_inflight -= amt; }
+    void dec_tx_wr(uint32_t amt) { 
+        uint32_t wr_inflight = tx_wr_inflight.load(std::memory_order_relaxed);
+        do{
+            if(wr_inflight == 0) return;
+        }while(!tx_wr_inflight.compare_exchange_weak(wr_inflight, 
+                                                    wr_inflight - amt, 
+                                                    std::memory_order_release,
+                                                    std::memory_order_relaxed));
+        mct->fct->log()->ldebug("infiniband", "amt: wr_inflight = %d: %d", amt, wr_inflight);
+        //tx_wr_inflight -= amt; 
+    }
     uint32_t get_tx_wr() const { return tx_wr_inflight; }
     ibv_qp* get_qp() const { return qp; }
     CompletionQueue* get_tx_cq() const { return txcq; }

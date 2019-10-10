@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:43
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 10:07:59
+ * @LastEditTime: 2019-09-29 15:57:53
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
 #define FLAME_LIBFLAME_LIBCHUNK_MSG_HANDLE_H
@@ -51,7 +51,7 @@ private:
     static int allocate_send_buffer(RdmaWorkRequest* req);
     static int prepare_send_recv(RdmaWorkRequest* req);
     static int set_command(RdmaWorkRequest* req, void* addr);
-    uint32_t _get_cqgcqn();
+    uint32_t _get_command_queue_n();
     bool _judge_seq_type(int type);
 public:
     ~RdmaWorkRequest();

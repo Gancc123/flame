@@ -57,7 +57,7 @@ private:
 
     uint64_t _get_io_addr(uint64_t ip, uint16_t port);
     void _prepare_inline(RdmaWorkRequest& req, uint64_t bufaddr, uint32_t data_len);
-    uint32_t _get_cq(RdmaWorkRequest& req);
+    uint32_t _get_command_queue_n(RdmaWorkRequest& req);
 }; // class CmdClientStubImpl
 
 
