@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-29 15:57:20
+ * @LastEditTime: 2019-10-12 15:11:02
  */
 #include "libflame/libchunk/libchunk.h"
 
@@ -52,7 +52,7 @@ cmd_ma_t MemoryAreaImpl::get() const {
  *          msg_module_cb       clear_done_cb       在消息模块销毁后调用的函数
  * @return: \
  */
-int CmdClientStubImpl::ring = 0;
+std::atomic<uint64_t> ring(0);     //用于填充cqn
 CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_module_cb clear_done_cb)
     :  CmdClientStub(){
     msg_context_ = new msg::MsgContext(flame_context); //* set msg_context_
@@ -161,6 +161,8 @@ int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_
     msg_cb.buffer   = req.get_data_buf(); 
     msg_cb.cb_arg   = cb_arg;
     uint32_t cq = _get_command_queue_n(req);
+    FlameContext* flame_context = FlameContext::get_context();
+    flame_context->log()->ldebug("submit command queue num : 0x%x", cq);
     msg_cb_map_.insert(std::map<uint32_t, MsgCallBack>::value_type (cq, msg_cb));
     rdma_conn->post_send(&req);
     return 0;

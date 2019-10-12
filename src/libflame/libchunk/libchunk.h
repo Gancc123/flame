@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:43
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-10 11:39:40
+ * @LastEditTime: 2019-10-12 15:09:59
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_LIBCHUNK_H
 #define FLAME_LIBFLAME_LIBCHUNK_LIBCHUNK_H
@@ -14,6 +14,8 @@
 #include "msg/msg_core.h"
 #include "libflame/libchunk/msg_handle.h"
 #include "msg/msg_context.h"
+
+#include <atomic>
 
 namespace flame {
 
@@ -44,7 +46,6 @@ public:
     ~CmdClientStubImpl() {
         msg_context_->fin();
     } 
-    static int ring;     //用于填充cqn
     
     RdmaWorkRequest* get_request();
     inline virtual std::map<uint32_t, MsgCallBack>& get_cb_map() override {return msg_cb_map_;}
