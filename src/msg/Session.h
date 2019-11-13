@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-10-24 17:15:26
+ */
 #ifndef FLAME_MSG_SESSION_H
 #define FLAME_MSG_SESSION_H
 
@@ -33,8 +41,8 @@ class Session : public RefCountedObject{
 public:
     explicit Session(MsgContext *c, msger_id_t peer)
     : RefCountedObject(c), peer_msger_id(peer), 
-     conns_mutex(MUTEX_TYPE_ADAPTIVE_NP),
-     lp_mutex(MUTEX_TYPE_ADAPTIVE_NP){
+     conns_mutex(MUTEX_TYPE_DEFAULT),
+     lp_mutex(MUTEX_TYPE_DEFAULT){
         conns.reserve(4);
     }
 

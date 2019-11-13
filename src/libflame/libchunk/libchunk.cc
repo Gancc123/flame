@@ -12,7 +12,10 @@
 #include "log_libchunk.h"
 #include "common/context.h"
 #include "util/spdk_common.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 #include "util/ip_op.h"
 
 #define MAX_INFLIGHT_REQ (1 << 16 - 1)

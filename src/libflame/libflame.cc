@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-05-13 09:35:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-25 11:36:32
+ * @LastEditTime: 2019-10-10 15:16:27
  */
 #include "include/libflame.h"
 
@@ -172,9 +172,8 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buf
         uint64_t chunk_index = chunk_positions[i].chunk_index;
         uint64_t peer_io_op = volume_meta_.chunks_map[chunk_index].ip;
         uint64_t peer_io_addr = peer_io_op << 16 | volume_meta_.chunks_map[chunk_index].port;
-        uint64_t chunk_id = chunk_positions[i].chunk_id; /////////////////////这里打印下看有没有问题
+        uint64_t chunk_id = chunk_positions[i].chunk_id; 
         FlameContext* flame_context = FlameContext::get_context();
-        flame_context->log()->ldebug("chunk_id = %llu", chunk_positions[i].chunk_id);
         uint64_t offset_inner = chunk_positions[i].offset;
         uint64_t length_inner = chunk_positions[i].length;
         if(length_inner < 4096){

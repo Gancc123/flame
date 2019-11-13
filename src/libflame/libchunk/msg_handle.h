@@ -14,7 +14,10 @@
 #include "common/thread/mutex.h"
 #include "common/context.h"
 #include "common/log.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include <deque>
 #include <sys/queue.h>

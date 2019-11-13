@@ -97,7 +97,7 @@ int TcpConnection::connect(MsgContext *mct, NodeAddr *addr){
 }
 
 TcpConnection::TcpConnection(MsgContext *mct)
-    :Connection(mct), msg_list_mutex(MUTEX_TYPE_ADAPTIVE_NP), 
+    :Connection(mct), msg_list_mutex(MUTEX_TYPE_DEFAULT), 
         cur_msg(msg_list.begin()), 
         cur_msg_header_buffer(sizeof(flame_msg_header_t)),
         cur_msg_offset(0),

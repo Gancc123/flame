@@ -12,7 +12,7 @@ namespace msg{
 
 EventPoller::EventPoller(MsgContext *c, int nevent)
 :mct(c), events(new struct epoll_event[nevent]), size(nevent), ecb_map(),
- ecb_mutex(MUTEX_TYPE_ADAPTIVE_NP), event_num(0){
+ ecb_mutex(MUTEX_TYPE_DEFAULT), event_num(0){
     memset(events, 0, sizeof(struct epoll_event)*nevent);
     
     epfd = epoll_create(1024); /* 1024 is just an hint for the kernel */

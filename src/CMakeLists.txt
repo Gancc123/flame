@@ -187,7 +187,6 @@ add_library(memory-objs OBJECT
     memzone/rdma/BuddyAllocator.cc
     memzone/rdma/memory_conf.cc
     memzone/rdma/RdmaMem.cc
-    memzone/rdma_mz.cc
     )
 list(APPEND obj_modules memory)
 

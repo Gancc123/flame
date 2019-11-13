@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-25 11:30:46
+ * @LastEditTime: 2019-10-14 14:59:09
  *
  * @copyright Copyright (c) 2019
  * 
@@ -14,7 +14,10 @@
 
 #include "include/retcode.h"
 #include "include/buffer.h"
-#include "memzone/rdma_mz.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
+
 #include "include/cmd.h"
 
 #include "proto/libflame.grpc.pb.h"

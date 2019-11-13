@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-29 09:38:01
+ * @LastEditTime: 2019-11-12 15:51:56
  */
 #ifndef FLAME_MSG_RDMA_INFINIBAND_H
 #define FLAME_MSG_RDMA_INFINIBAND_H
@@ -265,7 +265,7 @@ public:
                                                     wr_inflight + real_amt, 
                                                     std::memory_order_release,
                                                     std::memory_order_relaxed));
-        mct->fct->log()->ldebug("infiniband", "amt:real_amt:tx_wr_inflight:limit = %d: %d: %d: %d", amt, real_amt, tx_wr_inflight.load(std::memory_order_relaxed), limit);
+        mct->fct->log()->ldebug("infiniband", "after amt:real_amt:tx_wr_inflight:limit = %d: %d: %d: %d", amt, real_amt, tx_wr_inflight.load(std::memory_order_relaxed), limit);
         return real_amt;
     }
     void add_tx_wr(uint32_t amt) { tx_wr_inflight += amt; }

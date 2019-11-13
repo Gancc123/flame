@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:17:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-05 09:07:03
+ * @LastEditTime: 2019-10-24 17:21:02
  */
 #include "gtest/gtest.h"
 #include "memzone/rdma/BuddyAllocator.h"
@@ -125,6 +125,29 @@ TEST_F(BuddyAllocatorTest, pressure2){
     while(!p_vector.empty()){
         int pick = rand_pick(p_vector.size());
         std::swap(p_vector[pick], p_vector.back());
+        allocator->free(p_vector.back());
+        p_vector.pop_back();
+    }
+
+    auto s4 = allocator->alloc(4096);
+    EXPECT_NE(s4, nullptr);
+
+    allocator->free(s4);
+
+}
+
+TEST_F(BuddyAllocatorTest, pressure3){
+    std::vector<void *> p_vector;
+    p_vector.resize(32, nullptr);
+
+    for(int i = 0;i < 64; ++i){
+        int odd = rand() % 2;
+        uint64_t size = odd ? 1048576 : 4096;
+        p_vector[i] = allocator->alloc(size);
+        ASSERT_NE(p_vector[i], nullptr);
+    }
+
+    while(!p_vector.empty()){
         allocator->free(p_vector.back());
         p_vector.pop_back();
     }

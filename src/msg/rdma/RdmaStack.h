@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 17:06:40
+ * @LastEditTime: 2019-11-12 10:53:21
  */
 #ifndef FLAME_MSG_RDMA_RDMA_STACK_H
 #define FLAME_MSG_RDMA_RDMA_STACK_H
@@ -120,13 +120,14 @@ class RdmaWorker{
     std::list<RdmaConnection *> dead_conns;
 
     std::atomic<bool> is_fin;
+    Mutex mutex_;
 
     void handle_tx_cqe(ibv_wc *cqe, int n);
     void handle_rx_cqe(ibv_wc *cqe, int n);
     int handle_rx_msg(ibv_wc *cqe, RdmaConnection *conn);
 public:
     explicit RdmaWorker(MsgContext *c, RdmaManager *m)
-    :mct(c), manager(m) {}
+    :mct(c), manager(m), mutex_(MUTEX_TYPE_DEFAULT) {}
     ~RdmaWorker();
     int init();
     int clear_before_stop();

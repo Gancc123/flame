@@ -155,7 +155,7 @@ void RwRequest::run(){
 
 
 RwRequestPool::RwRequestPool(MsgContext *c, RwMsger *m)
-:mct(c), msger(m), mutex_(MUTEX_TYPE_ADAPTIVE_NP){
+:mct(c), msger(m), mutex_(MUTEX_TYPE_DEFAULT){
 
 }
 

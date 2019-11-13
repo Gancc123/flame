@@ -4,9 +4,10 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 09:43:23
+ * @LastEditTime: 2019-10-14 15:45:14
  */
 #include "memzone/rdma/RdmaMem.h"
+#include "common/context.h"
 #include "memzone/rdma/rdma_mz_log.h"
 #include "util/spdk_common.h"
 
@@ -14,69 +15,31 @@ namespace flame{
 namespace memory{
 namespace ib{
 
+RdmaBufferAllocator* RdmaBufferAllocator::g_rdma_buffer_allocator = nullptr;
+
 RdmaBuffer::RdmaBuffer(void *ptr, BuddyAllocator *a)
-: m_allocator(a){
+    : buddy_allocator_(a){
     rdma_mem_header_t *header = static_cast<rdma_mem_header_t *>(ptr);
-    m_lkey = header->lkey;
-    m_rkey = header->rkey;
-    m_size = header->size;
-    m_buffer = static_cast<char *>(ptr);
+    addr_ = (uint64_t)ptr;
+    size_ = header->size;
+    lkey_ = header->lkey;
+    rkey_ = header->rkey;
+    buffer_type_ = BufferTypes::BUFF_TYPE_RDMA;
 }
 
-void *RdmaMemSrc::alloc(size_t s) {
-    auto fct = allocator_ctx->get_fct();
-    void *m = spdk_malloc(s, 1 << 21, NULL,
-                            SPDK_ENV_SOCKET_ID_ANY,
-                            SPDK_MALLOC_DMA | SPDK_MALLOC_SHARE);
-
-    if(!m){
-        FL(fct, error, "RdmaMemSrc failed to allocate {} B of mem.", s);
-        return nullptr;
-    }
-    // When huge page memory's unit is 2MB(on intel),
-    // even s < 2MB, m will be at least 2MB.
-    // But when reg m(2MB) with s(s < 2MB), ibv_reg_mr give an error????
-    mr = ibv_reg_mr(allocator_ctx->get_pd()->pd, m, s, 
-                        IBV_ACCESS_LOCAL_WRITE
-                        | IBV_ACCESS_REMOTE_WRITE
-                        | IBV_ACCESS_REMOTE_READ);
-
-    if(mr == nullptr){
-        FL(fct, error, "RdmaMemSrc failed to register {} B of mem: {}", 
-                    s, strerror(errno));
-        spdk_free(m);
-        return nullptr;
-    }else{
-        FL(fct, info, "RdmaMemSrc register {} B of mem", s);
-    }
-
-    return m;
-}
-
-void RdmaMemSrc::free(void *p) {
-    ibv_dereg_mr(mr);
-    spdk_free(p);
-}
-
-void *RdmaMemSrc::prep_mem_before_return(void *p, void *base, size_t size) {
-    rdma_mem_header_t *header = reinterpret_cast<rdma_mem_header_t *>(p);
-    header->lkey = mr->lkey;
-    header->rkey = mr->rkey;
-    header->size = size;
-    return p;
-}
 
 int RdmaBufferAllocator::expand(){
     auto mem_src = new RdmaMemSrc(this);
     if(!mem_src){
         return -1;
     }
-    auto m = new Mutex(MUTEX_TYPE_ADAPTIVE_NP);
+    auto m = new Mutex(MUTEX_TYPE_DEFAULT);
     if(!m){
         delete mem_src;
         return -1;
     }
-    auto allocator = BuddyAllocator::create(fct, max_level, min_level, mem_src);
+    FlameContext* flame_context = FlameContext::get_context();
+    auto allocator = BuddyAllocator::create(flame_context, max_level_, min_level_, mem_src);
     if(!allocator){
         delete mem_src;
         delete m;
@@ -84,27 +47,46 @@ int RdmaBufferAllocator::expand(){
     }
 
     allocator->extra_data = m;
-
-    lfl_allocators.push_back(allocator);
+    lfl_allocators_.push_back(allocator);
 
     return 0;
 }
 
 int RdmaBufferAllocator::init(){
-    min_level = mem_cfg->rdma_mem_min_level;
-    max_level = mem_cfg->rdma_mem_max_level;
+    min_level_ = mem_cfg_->rdma_mem_min_level;
+    max_level_ = mem_cfg_->rdma_mem_max_level;
     return expand(); // first expand;
 }
 
 // assume that all threads has stopped.
 int RdmaBufferAllocator::fin(){
-    lfl_allocators.clear();
+    lfl_allocators_.clear();
+    return 0;
+}
+
+Buffer RdmaBufferAllocator::allocate(size_t sz) {
+    return Buffer(); //弃用
+}
+
+Buffer* RdmaBufferAllocator::allocate_ptr(size_t sz) {
+    return alloc(sz);
+}
+
+int RdmaBufferAllocator::type() const{
+    return BufferTypes::BUFF_TYPE_RDMA;
+}
+
+size_t RdmaBufferAllocator::max_size() const {
+    return 0;
+}
+
+size_t RdmaBufferAllocator::min_size() const {
     return 0;
 }
 
 RdmaBuffer *RdmaBufferAllocator::alloc(size_t s){
     FlameContext* flame_context = FlameContext::get_context();
-    if(s > (1ULL << max_level)){ // too large
+    if(s > (1ULL << max_level_)){ // too large
         return nullptr;
     }
     void *p = nullptr;
@@ -112,7 +94,7 @@ RdmaBuffer *RdmaBufferAllocator::alloc(size_t s){
     int retry_cnt = 3;
 
 retry:
-    auto it = lfl_allocators.elem_iter();
+    auto it = lfl_allocators_.elem_iter();
     while(it){
         auto a = reinterpret_cast<BuddyAllocator *>(it->p);
         MutexLocker ml(mutex_of_allocator(a));
@@ -148,25 +130,27 @@ retry:
 }
 
 void RdmaBufferAllocator::free(RdmaBuffer *buf){
-    if(!buf) return;
-    if(buf->allocator()){
-        BuddyAllocator* buddy_allocator = buf->allocator();
+    if(!buf) {
+        assert(0); //free error
+        return;
+    }
+    if(buf->get_buddy_allocator()){
+        BuddyAllocator* buddy_allocator = buf->get_buddy_allocator();
         MutexLocker mutex_locker(mutex_of_allocator(buddy_allocator));
-        buf->allocator()->free(buf->buffer(), buf->size());
+        buf->get_buddy_allocator()->free(buf->buffer(), buf->size());
     }
     delete buf;
 }
 
-int RdmaBufferAllocator::alloc_buffers(size_t s, int cnt, 
-                                                std::vector<RdmaBuffer*> &b){
-    if(s > (1ULL << max_level)){ // too large
+int RdmaBufferAllocator::alloc_buffers(size_t s, int cnt, std::vector<RdmaBuffer*> &b){
+    if(s > (1ULL << max_level_)){ // too large
         return 0;
     }
     int i = 0, i_before_expand = -1;
     int retry_cnt = 3;
 
 retry:
-    auto it = lfl_allocators.elem_iter();
+    auto it = lfl_allocators_.elem_iter();
     while(it){
         auto a = reinterpret_cast<BuddyAllocator *>(it->p);
 
@@ -208,9 +192,9 @@ retry:
 void RdmaBufferAllocator::free_buffers(std::vector<RdmaBuffer*> &b){
     for(auto buf : b){
         if(!buf) continue;
-        if(buf->allocator()){
-            MutexLocker ml(mutex_of_allocator(buf->allocator()));
-            buf->allocator()->free(buf->buffer(), buf->size());
+        if(buf->get_buddy_allocator()){
+            MutexLocker ml(mutex_of_allocator(buf->get_buddy_allocator()));
+            buf->get_buddy_allocator()->free(buf->buffer(), buf->size());
         }
     }
     for(auto buf : b){
@@ -221,7 +205,7 @@ void RdmaBufferAllocator::free_buffers(std::vector<RdmaBuffer*> &b){
 
 size_t RdmaBufferAllocator::get_mem_used() const{
     size_t total = 0;
-    auto it = lfl_allocators.elem_iter();
+    auto it = lfl_allocators_.elem_iter();
     while(it){
         auto a = reinterpret_cast<BuddyAllocator *>(it->p);
         total += a->get_mem_used();
@@ -232,7 +216,7 @@ size_t RdmaBufferAllocator::get_mem_used() const{
 
 size_t RdmaBufferAllocator::get_mem_reged() const{
     size_t total = 0;
-    auto it = lfl_allocators.elem_iter();
+    auto it = lfl_allocators_.elem_iter();
     while(it){
         auto a = reinterpret_cast<BuddyAllocator *>(it->p);
         total += a->get_mem_total();
@@ -243,12 +227,55 @@ size_t RdmaBufferAllocator::get_mem_reged() const{
 
 int RdmaBufferAllocator::get_mr_num() const{
     int total = 0;
-    auto it = lfl_allocators.elem_iter();
+    auto it = lfl_allocators_.elem_iter();
     while(it){
         ++total;
         it = it->next;
     }
     return total;
+}
+
+void *RdmaMemSrc::alloc(size_t s) {
+    FlameContext* fct = FlameContext::get_context();
+    void *m = spdk_malloc(s, 1 << 21, NULL,
+                            SPDK_ENV_SOCKET_ID_ANY,
+                            SPDK_MALLOC_DMA | SPDK_MALLOC_SHARE);
+
+    if(!m){
+        FL(fct, error, "RdmaMemSrc failed to allocate {} B of mem.", s);
+        return nullptr;
+    }
+    // When huge page memory's unit is 2MB(on intel),
+    // even s < 2MB, m will be at least 2MB.
+    // But when reg m(2MB) with s(s < 2MB), ibv_reg_mr give an error????
+    mr = ibv_reg_mr(allocator_ctx->get_pd()->pd, m, s, 
+                        IBV_ACCESS_LOCAL_WRITE
+                        | IBV_ACCESS_REMOTE_WRITE
+                        | IBV_ACCESS_REMOTE_READ);
+
+    if(mr == nullptr){
+        FL(fct, error, "RdmaMemSrc failed to register {} B of mem: {}", 
+                    s, strerror(errno));
+        spdk_free(m);
+        return nullptr;
+    }else{
+        FL(fct, info, "RdmaMemSrc register {} B of mem", s);
+    }
+
+    return m;
+}
+
+void RdmaMemSrc::free(void *p) {
+    ibv_dereg_mr(mr);
+    spdk_free(p);
+}
+
+void *RdmaMemSrc::prep_mem_before_return(void *p, void *base, size_t size) {
+    rdma_mem_header_t *header = reinterpret_cast<rdma_mem_header_t *>(p);
+    header->lkey = mr->lkey;
+    header->rkey = mr->rkey;
+    header->size = size;
+    return p;
 }
 
 

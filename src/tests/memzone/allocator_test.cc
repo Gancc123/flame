@@ -4,13 +4,16 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:53:19
+ * @LastEditTime: 2019-10-14 16:35:50
  */
 #include "common/context.h"
 #include "common/log.h"
 #include "util/spdk_common.h"
 #include "allocator_test.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 using namespace flame;
 using namespace flame::memory;
@@ -41,7 +44,7 @@ static void test_start(void *arg1, void *arg2) {
 
     std::cout << "mct init success..." << std::endl;
 
-    MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
+    memory::MemoryConfig *mem_cfg = memory::MemoryConfig::load_config(fct);
     assert(mem_cfg);
 
     std::cout << "load config completed.." << std::endl;
@@ -49,29 +52,20 @@ static void test_start(void *arg1, void *arg2) {
     flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_rdma_manager()->get_ib().get_pd();
 
     //初始化一个RDMA env然后将RDMA的pd作为参数传递给RdmaAllocator。
-    BufferAllocator *allocator = new RdmaAllocator(fct, pd, mem_cfg);
+    BufferAllocator *allocator = new RdmaBufferAllocator(pd, mem_cfg);
 
     std::cout << "alloctor init completed.." << std::endl;
 
-    Buffer rdma_buf = allocator->allocate(4 * MB);
-    BufferPtr *rdma_buf_ptr = rdma_buf.get();
+    Buffer* rdma_buf = allocator->allocate_ptr(4 * MB);
 
-    if(rdma_buf_ptr == nullptr) {
-        fct->log()->lerror("allocator_test", "allocator alloc memory failed.");
-        rdma_buf.clear();
-        delete allocator;
-        spdk_app_stop(-1);
-        return;
-    } else {
-        fct->log()->linfo("allocator_test", "allocator alloc memory success.");
-        
-        void *buffer = rdma_buf_ptr->addr();
-        size_t size = rdma_buf_ptr->size();
-
+    if(rdma_buf != nullptr){
+        fct->log()->linfo("allocator_test", "allocator alloc memory success.");   
+        void *buffer = (void*)rdma_buf->addr();
+        size_t size = rdma_buf->size();
         std::cout << "size = " << size << std::endl;
     }
 
-    rdma_buf.clear();
+    delete rdma_buf;
     delete allocator;
     spdk_app_stop(0);
 }

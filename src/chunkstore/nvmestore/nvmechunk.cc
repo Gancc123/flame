@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-29 17:11:00
+ */
 #include "chunkstore/nvmestore/nvmestore.h"
 #include "util/utime.h"
 #include "chunkstore/log_cs.h"
@@ -281,7 +289,8 @@ int NvmeChunk::store() {
 uint32_t NvmeChunk::get_target_core(IOChannelType type) {
     int index = 0;
     size_t core_count = nvmestore->get_core_count(type);
-    index = chk_id % core_count;
+    // index = chk_id % core_count; //这里对于1G的chunk，4KB访问相当于一直用单线程访问盘
+    index = rand()%100;
 
     return nvmestore->get_io_core(type, index);
 }

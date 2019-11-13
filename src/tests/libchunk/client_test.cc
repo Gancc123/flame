@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 09:02:44
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-10 11:46:05
+ * @LastEditTime: 2019-10-14 16:52:25
  */
 #include <unistd.h>
 #include <cstdio>
@@ -16,7 +16,10 @@
 #include "common/context.h"
 #include "common/log.h"
 #include "util/spdk_common.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 #include "util/ip_op.h"
 
 using namespace flame;
@@ -67,32 +70,32 @@ static void test_libchunk(void *arg1, void *arg2){
     std::string ip_string = "192.168.3.112";
     uint64_t peer_ip = string_to_ip(ip_string);
     uint64_t peer_io_addr = peer_ip << 16 | (uint32_t)9999;
-    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(); 
+    BufferAllocator *allocator = memory::ib::RdmaBufferAllocator::get_buffer_allocator(); 
 
     /* 无inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write= cmd_client_stub->get_request();
-    Buffer buf_write = allocator->allocate(1 << 22); //4MB
+    Buffer* buf_write = allocator->allocate_ptr(1 << 22); //4MB
     char a[10] = "123456789";
-    memcpy(buf_write.addr(), a, 8);
-    MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write.addr(), (uint32_t)buf_write.size(), buf_write.rkey(), 1);
+    memcpy((void*)buf_write->addr(), a, 8);
+    MemoryArea* memory_write = new MemoryAreaImpl((uint64_t)buf_write->addr(), (uint32_t)buf_write->size(), buf_write->rkey(), 1);
     cmd_t* cmd_write = (cmd_t *)rdma_work_request_write->command;
     ChunkWriteCmd* write_cmd = new ChunkWriteCmd(cmd_write, 1048592, 0, 4096, *memory_write, 0); 
     cmd_client_stub->submit(*rdma_work_request_write, peer_io_addr, &cb_func2, nullptr, nullptr);  //**写成功是不需要第三个参数的，只需要返回response
 
     /* 无inline的读取chunk的操作 */
     RdmaWorkRequest* rdma_work_request_read = cmd_client_stub->get_request();
-    Buffer buf_read = allocator->allocate(1 << 22); //4MB
-    MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read.addr(), (uint32_t)buf_read.size(), buf_read.rkey(), 1);
+    Buffer* buf_read = allocator->allocate_ptr(1 << 22); //4MB
+    MemoryArea* memory_read = new MemoryAreaImpl((uint64_t)buf_read->addr(), (uint32_t)buf_read->size(), buf_read->rkey(), 1);
     cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
     ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, 1048592, 0, 8192, *memory_read); 
-    cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, &cb_func, &buf_read, buf_read.addr());
+    cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, &cb_func, buf_read, (void*)buf_read->addr());
 
     /* 带inline的写入chunk的操作 */
     RdmaWorkRequest* rdma_work_request_write_inline = cmd_client_stub->get_request();
     cmd_t* cmd_write_inline = (cmd_t *)rdma_work_request_write_inline->command;
     Buffer* buf_write_inline = rdma_work_request_write_inline->get_data_buf();
     char b[8] = "9876543";
-    memcpy(buf_write_inline->addr(), b, 8);
+    memcpy((void*)buf_write_inline->addr(), b, 8);
     MemoryArea* memory_write_inline = new MemoryAreaImpl((uint64_t)buf_write_inline->addr(),\
                      (uint32_t)buf_write_inline->size(), buf_write_inline->rkey(), 1);
     ChunkWriteCmd* write_cmd_inline = new ChunkWriteCmd(cmd_write_inline, 1048592, 0, 4096, *memory_write_inline, 1); 
@@ -107,9 +110,9 @@ static void test_libchunk(void *arg1, void *arg2){
 
     std::getchar();
     flame_context->log()->ltrace("Start to exit!");
-    buf_write.clear();
-    buf_read.clear();
-    buf_write_inline->clear();
+    delete buf_write;
+    delete buf_read;
+    delete buf_write_inline;
 }
 
 int main(int argc, char *argv[])

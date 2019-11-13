@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-09 10:17:41
+ * @LastEditTime: 2019-11-12 09:58:28
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -12,6 +12,8 @@
 #include "msg/internal/byteorder.h"
 #include "msg/internal/node_addr.h"
 #include "msg/internal/errno.h"
+#include "include/csdc.h"
+#include "include/cmd.h"
 
 #include <algorithm>
 #include <iterator>
@@ -172,6 +174,7 @@ ssize_t RdmaConnection::send_msg(Msg *msg, bool more){
 }
 
 int RdmaConnection::activate(){
+    FlameContext* flame_context = FlameContext::get_context();
     if(active){
         return 0;
     }
@@ -202,9 +205,7 @@ int RdmaConnection::activate(){
     qpa.ah_attr.src_path_bits = 0;
     qpa.ah_attr.port_num = (uint8_t)(ib.get_ib_physical_port());
 
-    ML(mct, info, "Choosing gid_index {}, sl {}", 
-                                    (int)qpa.ah_attr.grh.sgid_index,
-                                    (int)qpa.ah_attr.sl);
+    flame_context->log()->ldebug("Choosing gid_index %u, sl %u",(int)qpa.ah_attr.grh.sgid_index,(int)qpa.ah_attr.sl);
     
     r = ibv_modify_qp(qp->get_qp(), &qpa, IBV_QP_STATE |
                                             IBV_QP_AV |
@@ -215,12 +216,11 @@ int RdmaConnection::activate(){
                                             IBV_QP_MAX_DEST_RD_ATOMIC);
     
     if(r){
-        ML(mct, error, "failed to transition to RTR state: {}",
-                                                    cpp_strerror(errno));
+        flame_context->log()->ldebug("failed to transition to RTR state: %s", cpp_strerror(errno));
         return -1;
     }
 
-    ML(mct, info, "transition to RTR state successfully.");
+    flame_context->log()->ldebug("transition to RTR state successfully.");
 
     // now move to RTS
     qpa.qp_state = IBV_QPS_RTS;
@@ -248,18 +248,15 @@ int RdmaConnection::activate(){
                                             IBV_QP_SQ_PSN |
                                             IBV_QP_MAX_QP_RD_ATOMIC);
     if (r) {
-        ML(mct, error, "failed to transition to RTS state: {}", 
-                                                        cpp_strerror(errno));
+        flame_context->log()->ldebug("failed to transition to RTS state: %s", cpp_strerror(errno));
         return -1;
     }
 
     // the queue pair should be ready to use once the client has finished
     // setting up their end.
-    ML(mct, info, "transition to RTS state successfully.");
-    ML(mct, info, "QueuePair:{:p} with qp: {:p}", (void *)qp, 
-                                                        (void *)qp->get_qp());
-    ML(mct, trace, "qpn:{} state:{}", my_msg.qpn, 
-                                    ib.qp_state_string(qp->get_state()));
+    flame_context->log()->ldebug("transition to RTS state successfully.");
+    flame_context->log()->ldebug("QueuePair:0x%x with qp: 0x%x", (void *)qp, (void *)qp->get_qp());
+    flame_context->log()->ldebug("qpn:%d state:%s", my_msg.qpn, ib.qp_state_string(qp->get_state()));
     active = true;
     status = RdmaStatus::CAN_WRITE;
     
@@ -310,10 +307,11 @@ static void event_fn_post_send(void *arg1, void *arg2){
 }
 
 void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
+    FlameContext* flame_context = FlameContext::get_context();
     if(status != RdmaStatus::INIT
         && status != RdmaStatus::CAN_WRITE
         && wr){
-        ML(mct, warn, "Conn can't post send wr. State: {}", status_str(status));
+        flame_context->log()->lwarn("Conn can't post send wr. State: {}", status_str(status));
         ibv_send_wr *it = wr->get_ibv_send_wr();
         ibv_send_wr *next;
         while(it){
@@ -337,11 +335,13 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
         ibv_send_wr *it = ibv_wr;
         while(it){
             auto send_wr = reinterpret_cast<RdmaSendWr *>(it->wr_id);
+            // if(it->opcode == IBV_WR_SEND)
+            //     flame_context->log()->ldebug("pending send wrs chunk id: %llu", *(uint64_t*)((char*)it->sg_list->addr + 8));
             pending_send_wrs.push_back(send_wr);
             it = it->next;
         }
     }
-    ML(mct, debug, "pending_send_wrs: {}", pending_send_wrs.size());
+    flame_context->log()->ldebug("pending_send_wrs: %u", pending_send_wrs.size());
 
     if(pending_send_wrs.size() == 0 || more){
         return;
@@ -354,16 +354,23 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
     }
 
     //prepare wrs.
-    uint32_t can_post_cnt = qp->add_tx_wr_with_limit(pending_send_wrs.size(),
-                                                        tx_queue_len, true);
+    uint32_t can_post_cnt = qp->add_tx_wr_with_limit(pending_send_wrs.size(), tx_queue_len, true);
+    flame_context->log()->ldebug("can_post_cnt = %llu", can_post_cnt);
     uint32_t i;
     for(i = 0;i + 1 < can_post_cnt;++i){
-        pending_send_wrs[i]->get_ibv_send_wr()->next =
-                                        pending_send_wrs[i+1]->get_ibv_send_wr();
+        pending_send_wrs[i]->get_ibv_send_wr()->next = pending_send_wrs[i+1]->get_ibv_send_wr();
+        flame_context->log()->ldebug("opcode = %llu",pending_send_wrs[i]->get_ibv_send_wr()->opcode);
+        if(pending_send_wrs[i]->get_ibv_send_wr()->opcode == IBV_WR_SEND)
+            flame_context->log()->ldebug("ready to post send chunk id: %llu", *(uint64_t*)((char*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr + 8));                  
     }
     pending_send_wrs[i]->get_ibv_send_wr()->next = nullptr;
-    
 
+    flame_context->log()->ldebug("i = %llu, opcode = %llu", i, pending_send_wrs[i]->get_ibv_send_wr()->opcode);
+    // if(pending_send_wrs[i]->get_ibv_send_wr()->opcode == IBV_WR_SEND){
+    //     cmd_t* command_ = (cmd_t*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr;
+    //     flame_context->log()->ldebug("command queue num : 0x%x", command_->hdr.cqg << 16 | command_->hdr.cqn);
+    //     flame_context->log()->ldebug("ready to post send chunk id: %llu", *(uint64_t*)((char*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr + 8));
+    // }
     //ibv_post_send()
     ibv_send_wr *tgt_wr = pending_send_wrs[0]->get_ibv_send_wr();
     ibv_send_wr *bad_tx_wr = nullptr;
@@ -372,14 +379,10 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
     if (ibv_post_send(qp->get_qp(), tgt_wr, &bad_tx_wr)) {
         eno = errno;
         if(errno == ENOMEM){
-            ML(mct, error, "failed to send data. "
-                        "(most probably send queue is full): {}",
-                        cpp_strerror(errno));
+            flame_context->log()->lerror("failed to send data. (most probably send queue is full): %s",cpp_strerror(errno));
             
         }else{
-            ML(mct, error, "failed to send data. "
-                        "(most probably should be peer not ready): {}",
-                        cpp_strerror(errno));
+            flame_context->log()->lerror("failed to send data. (most probably should be peer not ready): %s",cpp_strerror(errno));
         }
         //when failed.
         if(bad_tx_wr){

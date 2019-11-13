@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-05 09:56:53
+ * @LastEditTime: 2019-10-25 19:03:52
  */
 #include "common/context.h"
 #include "msg/msg_core.h"
@@ -86,11 +86,12 @@ static void rdma_client_start(void *arg1, void *arg2){
 
     send_first_incre_msg(mct, msger);
 
+    std::getchar();
     ML(mct, info, "before msg module fin");
     mct->fin();
     ML(mct, info, "after msg module fin");
     
-    std::getchar();
+    
     delete msger;
     delete mct;
     spdk_app_stop(0);
