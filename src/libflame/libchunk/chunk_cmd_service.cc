@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-13 15:07:59
  * @LastEditors: lwg
- * @LastEditTime: 2019-11-13 11:27:08
+ * @LastEditTime: 2019-11-18 15:40:35
  */
 
 #include "libflame/libchunk/chunk_cmd_service.h"
@@ -93,17 +93,11 @@ int ReadCmdService::call(RdmaWorkRequest *req){
         ChunkReadCmd* cmd_chunk_read = new ChunkReadCmd((cmd_t *)req->command);
         cmd_ma_t& ma = ((cmd_chk_io_rd_t *)cmd_chunk_read->get_content())->ma; 
         if(cmd_chunk_read->get_ma_len() > MAX_INLINE_SIZE){   //**WRITE
-            assert(req->data_buf_ != nullptr);
-            assert(&req->sge_[0]);
-            assert(req->data_buf_->addr());
-            assert(req->data_buf_->size());
-            assert(req->data_buf_->lkey());
             _set_seg(req->sge_[0], (uint64_t)req->data_buf_->addr(), req->data_buf_->size(), req->data_buf_->lkey());
             _prepare_write(req, ma);
-            request_addrs_.insert(std::make_pair((long)req, 0));
-            std::unordered_map<long, int>::iterator it;
             flame_context->log()->ldebug("now tid is %d", gettid());
-            if((it = request_addrs_.find((long)req)) != request_addrs_.end())   flame_context->log()->ldebug("repeat! req addr = %llu", (long)req);
+            flame_context->log()->ldebug("req->send_wr_.wr_id is 0x%x", req->send_wr_.wr_id);
+
             rdma_conn->post_send(req);
         }else{//**inline数据直接连带response SEND过去
             cmd_rc_t rc = 0;
@@ -118,8 +112,8 @@ int ReadCmdService::call(RdmaWorkRequest *req){
         }
     }else if(req->status == RdmaWorkRequest::Status::WRITE_DONE){ 
         if(req->get_data_buf()) {
-            delete(req->get_data_buf()); 
-        }
+            delete(req->get_data_buf());
+        } 
         cmd_rc_t rc = 0;
         cmd_t cmd = *(cmd_t *)req->command;
         ChunkReadCmd* read_cmd = new ChunkReadCmd(&cmd); 
@@ -127,6 +121,7 @@ int ReadCmdService::call(RdmaWorkRequest *req){
         ChunkReadRes* res = new ChunkReadRes(cmd_res, *read_cmd, rc); 
         _set_seg(req->sge_[0], (uint64_t)req->buf_[0]->addr(), 64, req->buf_[0]->lkey());
         _prepare_send(req, 1);
+        flame_context->log()->ldebug("req->send_wr_.wr_id is 0x%x", req->send_wr_.wr_id);
         rdma_conn->post_send(req);
     }else{                              
         return 1;

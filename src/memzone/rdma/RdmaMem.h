@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-06 15:04:27
  * @LastEditors: lwg
- * @LastEditTime: 2019-10-14 16:22:42
+ * @LastEditTime: 2019-11-15 17:32:20
  */
 #ifndef FLAME_MEMZONE_RDMA_RDMA_MEM_H
 #define FLAME_MEMZONE_RDMA_RDMA_MEM_H
@@ -33,12 +33,16 @@ struct rdma_mem_header_t{
     size_t   size;
 };
 
+class RdmaBufferAllocator;
+
 class RdmaBuffer : public Buffer{
     BuddyAllocator *buddy_allocator_;
+    RdmaBufferAllocator* rdma_buffer_allocator_;
 public:
     explicit RdmaBuffer(BuddyAllocator* buddy_allocator, uint64_t addr, size_t size, uint32_t rkey, uint32_t lkey, BufferTypes buffer_type)
     :Buffer(addr, size, rkey, lkey, buffer_type), buddy_allocator_(buddy_allocator) {};
-    explicit RdmaBuffer(void *ptr, BuddyAllocator *a);
+    explicit RdmaBuffer(void *ptr, BuddyAllocator *a, RdmaBufferAllocator* rdma_buffer_allocator);
+    virtual ~RdmaBuffer();
     char *   buffer() const { return (char*)addr_; }
     BuddyAllocator *get_buddy_allocator() const { return buddy_allocator_; }
 

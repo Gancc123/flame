@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-11-12 17:07:59
+ * @LastEditTime: 2019-11-15 17:21:47
  */
 /**
  * @file buffer.h
@@ -46,7 +46,7 @@ public:
     Buffer(uint64_t addr, size_t size, uint32_t lkey, uint32_t rkey, BufferTypes buffer_type)
     : addr_(addr), size_(size), lkey_(lkey), rkey_(rkey), buffer_type_(buffer_type){}
 
-    ~Buffer() {
+    virtual ~Buffer() {
         FlameContext* fct = FlameContext::get_context();
         fct->log()->ldebug("Buffer", "Buffer deleted! 0x%x", this);
     }

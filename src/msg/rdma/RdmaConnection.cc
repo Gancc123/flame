@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-11-12 09:58:28
+ * @LastEditTime: 2019-11-15 10:59:04
  */
 #include "Infiniband.h"
 #include "RdmaConnection.h"
@@ -335,8 +335,7 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
         ibv_send_wr *it = ibv_wr;
         while(it){
             auto send_wr = reinterpret_cast<RdmaSendWr *>(it->wr_id);
-            // if(it->opcode == IBV_WR_SEND)
-            //     flame_context->log()->ldebug("pending send wrs chunk id: %llu", *(uint64_t*)((char*)it->sg_list->addr + 8));
+            flame_context->log()->ldebug("add to pending_send_wrs: wr_id = 0x%x ", it->wr_id);
             pending_send_wrs.push_back(send_wr);
             it = it->next;
         }
@@ -356,21 +355,23 @@ void RdmaConnection::post_send(RdmaSendWr *wr, bool more){
     //prepare wrs.
     uint32_t can_post_cnt = qp->add_tx_wr_with_limit(pending_send_wrs.size(), tx_queue_len, true);
     flame_context->log()->ldebug("can_post_cnt = %llu", can_post_cnt);
+    if(can_post_cnt == 0){   //**如果没有则直接传给对应的核同样的event重新执行
+        rdma_worker->get_owner()->post_work(event_fn_post_send, this, nullptr);
+        return ;
+    }
     uint32_t i;
     for(i = 0;i + 1 < can_post_cnt;++i){
         pending_send_wrs[i]->get_ibv_send_wr()->next = pending_send_wrs[i+1]->get_ibv_send_wr();
-        flame_context->log()->ldebug("opcode = %llu",pending_send_wrs[i]->get_ibv_send_wr()->opcode);
-        if(pending_send_wrs[i]->get_ibv_send_wr()->opcode == IBV_WR_SEND)
-            flame_context->log()->ldebug("ready to post send chunk id: %llu", *(uint64_t*)((char*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr + 8));                  
+        flame_context->log()->ldebug("wr_id = 0x%x %s", 
+                pending_send_wrs[i]->get_ibv_send_wr()->wr_id, 
+                rdma_worker->get_rdma_manager()->get_ib().wr_opcode_string(pending_send_wrs[i]->get_ibv_send_wr()->opcode));            
     }
     pending_send_wrs[i]->get_ibv_send_wr()->next = nullptr;
-
+    flame_context->log()->ldebug("wr_id = 0x%x %s", 
+                pending_send_wrs[i]->get_ibv_send_wr()->wr_id, 
+                rdma_worker->get_rdma_manager()->get_ib().wr_opcode_string(pending_send_wrs[i]->get_ibv_send_wr()->opcode));
     flame_context->log()->ldebug("i = %llu, opcode = %llu", i, pending_send_wrs[i]->get_ibv_send_wr()->opcode);
-    // if(pending_send_wrs[i]->get_ibv_send_wr()->opcode == IBV_WR_SEND){
-    //     cmd_t* command_ = (cmd_t*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr;
-    //     flame_context->log()->ldebug("command queue num : 0x%x", command_->hdr.cqg << 16 | command_->hdr.cqn);
-    //     flame_context->log()->ldebug("ready to post send chunk id: %llu", *(uint64_t*)((char*)pending_send_wrs[i]->get_ibv_send_wr()->sg_list->addr + 8));
-    // }
+
     //ibv_post_send()
     ibv_send_wr *tgt_wr = pending_send_wrs[0]->get_ibv_send_wr();
     ibv_send_wr *bad_tx_wr = nullptr;

@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-11-12 17:00:59
+ * @LastEditTime: 2019-11-15 11:29:51
  */
 #include "RdmaStack.h"
 #include "Infiniband.h"
@@ -169,7 +169,6 @@ int RdmaWorker::process_cq_dry_run(){
 }
 
 void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
-    // MutexLocker l(mutex_);   //这里有问题，本来不用锁的感觉!!!!!!!!!!!!!!!!!但是不用锁又会有两个
     std::set<RdmaConnection *> to_wake_conns;
     auto tx_queue_len = manager->get_ib().get_tx_queue_len();
 
@@ -186,16 +185,15 @@ void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
             }
             qp->dec_tx_wr(1);
         }
-
+        FlameContext* flame_context = FlameContext::get_context();
         std::thread::id tid = std::this_thread::get_id();
         ML(mct, debug, "i : {}, n : {}", i, n);
-	    std::cout << "main id=" << tid << std::endl;
-        ML(mct, debug, "QP: {}, wr_id: {:x}, imm_data:{} {} {}", 
+        flame_context->log()->ldebug("RdmaStack", "QP: %lu, wr_id: 0x%x, imm_data:%lu %s %s", 
                 response->qp_num, response->wr_id, 
                 (response->wc_flags & IBV_WC_WITH_IMM)?response->imm_data:0,
                 manager->get_ib().wc_opcode_string(response->opcode),
                 manager->get_ib().wc_status_to_string(response->status));
-
+                
         RdmaSendWr *wr = reinterpret_cast<RdmaSendWr *>(response->wr_id);
         wr->get_ibv_send_wr()->next = nullptr;
         wr->on_send_done(cqe[i]);

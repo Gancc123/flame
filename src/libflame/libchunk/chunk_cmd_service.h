@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-13 15:07:59
  * @LastEditors: lwg
- * @LastEditTime: 2019-11-13 09:09:39
+ * @LastEditTime: 2019-11-15 15:22:42
  */
 #ifndef FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
 #define FLAME_LIBFLAME_LIBCHUNK_CHUNK_CMD_SERVICE_H
@@ -12,7 +12,6 @@
 
 #include <iostream>
 #include <cstring>
-#include <unordered_map>
 
 #include "csd/csd_context.h"
 #include "chunkstore/chunkstore.h"
@@ -38,7 +37,6 @@ public:
     ReadCmdService(CsdContext *cct):CmdService(), cct_(cct){}
     virtual ~ReadCmdService() {}
 private:
-    std::unordered_map<long, int> request_addrs_;
     CsdContext* cct_;
     int _chunk_io_rw(std::shared_ptr<Chunk> chunk, chk_off_t offset, uint32_t len, uint64_t laddr, bool rw, chunk_opt_cb_t cb_fn, void* cb_arg);
     void _set_seg(ibv_sge& sge, uint64_t addr, size_t size, uint32_t lkey);

@@ -4,7 +4,7 @@
  * @Author: liweiguang
  * @Date: 2019-05-16 14:56:17
  * @LastEditors: lwg
- * @LastEditTime: 2019-10-24 17:14:27
+ * @LastEditTime: 2019-11-15 15:25:01
  */
 #include "libflame/libchunk/msg_handle.h"
 
@@ -33,12 +33,12 @@ int RdmaWorkRequest::allocate_send_buffer(RdmaWorkRequest* req){
     req->sge_[0].addr = (uint64_t)buffer->addr();
     req->sge_[0].length = 64;
     req->sge_[0].lkey = buffer->lkey();
-    Buffer* buffer2 = allocator->allocate_ptr(4096);
-    assert(buffer2);
-    req->buf_[1] = buffer2;
-    req->sge_[1].addr = (uint64_t)buffer2->addr();
-    req->sge_[1].length = 4096;
-    req->sge_[1].lkey = buffer2->lkey();
+    // Buffer* buffer2 = allocator->allocate_ptr(4096);
+    // assert(buffer2);
+    // req->buf_[1] = buffer2;
+    // req->sge_[1].addr = (uint64_t)buffer2->addr();
+    // req->sge_[1].length = 4096;
+    // req->sge_[1].lkey = buffer2->lkey();
     return 0;
 }
 
@@ -173,19 +173,16 @@ void RdmaWorkRequest::run(){
                     status = DESTROY;
                     break;
                 case DESTROY:{
-                    sge_[0].addr = (uint64_t)buf_[0]->addr();
-                    sge_[0].length = 64;
-                    sge_[0].lkey = buf_[0]->lkey();
-                    ibv_recv_wr &rwr = recv_wr_;
-                    memset(&rwr, 0, sizeof(rwr));
-                    rwr.wr_id = reinterpret_cast<uint64_t>((RdmaRecvWr *)this);
-                    rwr.num_sge = 1;
-                    rwr.sg_list = sge_;
-                    set_command(this, (void*)this->buf_[0]->addr());
-                    // msger_->get_req_pool().free_req(this);
-                    delete get_request_buf();
-                    delete get_inline_buf();
-                    delete this;
+                    // sge_[0].addr = (uint64_t)buf_[0]->addr();
+                    // sge_[0].length = 64;
+                    // sge_[0].lkey = buf_[0]->lkey();
+                    // ibv_recv_wr &rwr = recv_wr_;
+                    // memset(&rwr, 0, sizeof(rwr));
+                    // rwr.wr_id = reinterpret_cast<uint64_t>((RdmaRecvWr *)this);
+                    // rwr.num_sge = 1;
+                    // rwr.sg_list = sge_;
+                    // set_command(this, (void*)this->buf_[0]->addr());
+                    msger_->get_req_pool().free_req(this);
                     status = FREE;
                     break;
                 }
@@ -228,19 +225,7 @@ void RdmaWorkRequest::run(){
                 next_ready = true;
                 break;
             case DESTROY:{
-                sge_[0].addr = (uint64_t)buf_[0]->addr();
-                sge_[0].length = 64;
-                sge_[0].lkey = buf_[0]->lkey();
-                ibv_recv_wr &rwr = recv_wr_;
-                memset(&rwr, 0, sizeof(rwr));
-                rwr.wr_id = reinterpret_cast<uint64_t>((RdmaRecvWr *)this);
-                rwr.num_sge = 1;
-                rwr.sg_list = sge_;
-                set_command(this, (void*)this->buf_[0]->addr());
-                // msger_->get_req_pool().free_req(this);
-                delete get_request_buf();
-                delete get_inline_buf();
-                delete this;
+                msger_->get_req_pool().free_req(this);
                 status = FREE;
                 break;
             }
@@ -287,7 +272,7 @@ int RdmaWorkRequestPool::purge_lockfree(int n){
     while(!reqs_free_.empty() && cnt != n){
         RdmaWorkRequest* req = reqs_free_.back();
         delete req->get_request_buf();
-        delete req->get_inline_buf();
+        // delete req->get_inline_buf();
         delete req;
         reqs_free_.pop_back();
         cnt++;

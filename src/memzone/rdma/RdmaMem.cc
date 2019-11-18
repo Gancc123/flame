@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-10-14 15:45:14
+ * @LastEditTime: 2019-11-18 16:11:20
  */
 #include "memzone/rdma/RdmaMem.h"
 #include "common/context.h"
@@ -17,14 +17,20 @@ namespace ib{
 
 RdmaBufferAllocator* RdmaBufferAllocator::g_rdma_buffer_allocator = nullptr;
 
-RdmaBuffer::RdmaBuffer(void *ptr, BuddyAllocator *a)
-    : buddy_allocator_(a){
+RdmaBuffer::RdmaBuffer(void *ptr, BuddyAllocator *a, RdmaBufferAllocator *rdma_buffer_allocator)
+    : buddy_allocator_(a), rdma_buffer_allocator_(rdma_buffer_allocator){
     rdma_mem_header_t *header = static_cast<rdma_mem_header_t *>(ptr);
     addr_ = (uint64_t)ptr;
     size_ = header->size;
     lkey_ = header->lkey;
     rkey_ = header->rkey;
     buffer_type_ = BufferTypes::BUFF_TYPE_RDMA;
+}
+
+RdmaBuffer::~RdmaBuffer(){
+    if(rdma_buffer_allocator_){
+        rdma_buffer_allocator_->free(this);
+    }
 }
 
 
@@ -118,7 +124,7 @@ retry:
         return nullptr; // no men can alloc
     }
 
-    auto rb = new RdmaBuffer(p, ap);
+    auto rb = new RdmaBuffer(p, ap, this);
     if(!rb){
         MutexLocker ml(mutex_of_allocator(ap));
         ap->free(p);
@@ -139,7 +145,6 @@ void RdmaBufferAllocator::free(RdmaBuffer *buf){
         MutexLocker mutex_locker(mutex_of_allocator(buddy_allocator));
         buf->get_buddy_allocator()->free(buf->buffer(), buf->size());
     }
-    delete buf;
 }
 
 int RdmaBufferAllocator::alloc_buffers(size_t s, int cnt, std::vector<RdmaBuffer*> &b){
@@ -158,7 +163,7 @@ retry:
         while(i < cnt){
             void *p = a->alloc(s);
             if(p){
-                auto rb = new RdmaBuffer(p, a);
+                auto rb = new RdmaBuffer(p, a, this);
                 if(!rb){
                     //RdmaBuffer new failed???
                     a->free(p);
