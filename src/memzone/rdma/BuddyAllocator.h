@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-05 09:01:52
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-05 09:01:52
+ */
 #ifndef FLAME_MEMZONE_RDMA_BUDDY_ALLOCATOR_H
 #define FLAME_MEMZONE_RDMA_BUDDY_ALLOCATOR_H
 
@@ -32,7 +40,6 @@ public:
 };
 
 class BuddyAllocator{
-    //MsgContext *mct;
     FlameContext *fct;
     uint8_t min_level;
     uint8_t max_level;

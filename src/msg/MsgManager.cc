@@ -18,7 +18,7 @@ namespace flame{
 namespace msg{
 
 MsgManager::MsgManager(MsgContext *c, int worker_num)
-: mct(c), is_running(false), m_mutex(MUTEX_TYPE_ADAPTIVE_NP){
+: mct(c), is_running(false), m_mutex(MUTEX_TYPE_DEFAULT){
     workers.reserve(worker_num);
     for(int i = 0;i < worker_num; ++i){
         MsgWorker *msg_worker = nullptr;

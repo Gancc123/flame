@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-10 11:47:53
+ * @LastEditTime: 2019-10-14 14:59:09
  *
  * @copyright Copyright (c) 2019
  * 
@@ -14,7 +14,10 @@
 
 #include "include/retcode.h"
 #include "include/buffer.h"
-#include "memzone/rdma_mz.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
+
 #include "include/cmd.h"
 
 #include "proto/libflame.grpc.pb.h"
@@ -40,6 +43,7 @@ struct  Config {
 
 //对单一chunk访问的结构
 struct ChunkOffLen {
+    uint64_t    chunk_index;
     uint64_t    chunk_id;
     uint64_t    offset;
     uint64_t    length;

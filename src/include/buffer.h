@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 09:36:46
+ * @LastEditTime: 2019-11-15 17:21:47
  */
 /**
  * @file buffer.h
@@ -40,214 +40,43 @@ enum BufferTypes {
 
 namespace flame {
 
-class BufferPtr {
-public:
-    virtual ~BufferPtr() {}
-
-    /**
-     * @brief Get Address of Buffer
-     * 
-     * @return void* 
-     */
-    virtual void* addr() const = 0;
-
-    /**
-     * @brief Get Size of Buffer
-     * 
-     * @return size_t 
-     */
-    virtual size_t size() const = 0;
-
-    /**
-     * @brief 
-     * 
-     * @return true 
-     * @return false 
-     */
-    virtual bool null() const { return addr() == nullptr || size() == 0; }
-
-    /**
-     * @brief Get the Tail of Buffer
-     * 
-     * @return void* 
-     */
-    virtual void* end() const { return (char *)addr() + size(); }
-
-    /**
-     * @brief Buffer类型
-     * 用于区分不同Buffer分配器所分配的类型，0表示无类型
-     * @return int 
-     */
-    virtual int type() const { return 0; }
-
-    /**
-     * @brief rkey of Buffer
-     * 
-     * @return uint32_t 
-     */
-    virtual uint32_t rkey() const = 0;
-
-    /**
-     * @brief Get lkey of Buffer
-     * 
-     * @return uint32_t 
-     */
-    virtual uint32_t lkey() const = 0;
-
-    /**
-     * @brief 按指定大小调整Buffer空间
-     * 默认拒绝重新分配，可以不实现调整功能
-     * @param sz 新大小
-     * @return true 调整成功
-     * @return false 调整失败
-     */
-    virtual bool resize(size_t sz) { return size() == sz ? true : false; }
- 
-protected:
-    BufferPtr() {}
-}; // class BufferPtr
-
-inline bool operator == (const BufferPtr& x, const BufferPtr& y) {
-    return (x.addr() == y.addr()) && (x.size() == y.size());
-}
-
-inline bool operator != (const BufferPtr& x, const BufferPtr& y) {
-    return !(x == y);
-}
-
-template<typename T>
-class Pointer : public BufferPtr {
-public:
-    explicit Pointer() : ptr_(nullptr), cnt_(0) {}
-    explicit Pointer(T* ptr) : ptr_(ptr), cnt_(1) {}
-    explicit Pointer(T* ptr, size_t cnt) : ptr_(ptr), cnt_(cnt) {}
-
-    virtual uint8_t* addr() const override { return static_cast<uint8_t*>(ptr_); }
-
-    virtual size_t size() const override { return sizeof(T) * cnt_; }
-
-    void set(T* ptr, size_t cnt = 1) { ptr_ = ptr; cnt_ = cnt; }
-
-    T* get(size_t idx = 0) { return idx < cnt_ ? ptr_ + idx : nullptr; }
-
-protected:
-    T* ptr_;
-    size_t cnt_;
-}; // class Pointer
-
 class Buffer {
 public:
     Buffer() {}
-    ~Buffer() {
+    Buffer(uint64_t addr, size_t size, uint32_t lkey, uint32_t rkey, BufferTypes buffer_type)
+    : addr_(addr), size_(size), lkey_(lkey), rkey_(rkey), buffer_type_(buffer_type){}
+
+    virtual ~Buffer() {
         FlameContext* fct = FlameContext::get_context();
-        fct->log()->ldebug("Buffer", "Buffer deleted!");
+        fct->log()->ldebug("Buffer", "Buffer deleted! 0x%x", this);
     }
-    Buffer(const std::shared_ptr<BufferPtr>& ptr) : ptr_(ptr) {}
+    inline uint64_t addr() const { return addr_; }
+    inline size_t size() const { return size_; }
+    inline uint32_t lkey() const { return lkey_; }
+    inline uint32_t rkey() const { return rkey_; }
+    inline int buffer_type() const { return buffer_type_; }
 
-    /**
-     * @brief 
-     * 
-     * @param ptr 
-     */
-    inline void set(const std::shared_ptr<BufferPtr>& ptr) { ptr_ = ptr; }
+    inline void set_addr(uint64_t addr)  { addr_ = addr; }
+    inline void set_size(size_t   size)  { size_ = size; }
+    inline void set_lkey(uint32_t lkey)  { lkey_ = lkey; }
+    inline void set_rkey(uint32_t rkey)  { rkey_ = rkey; }
+    inline void set_buffer_type(BufferTypes buffer_type)  { buffer_type_ = buffer_type; }
 
-    /**
-     * @brief 
-     * 
-     * @return true 
-     * @return false 
-     */
-    inline bool null() const { return ptr_.get() == nullptr || ptr_->null(); }
+    inline bool is_normal() const { return buffer_type_ == BUFF_TYPE_NORMAL; }
+    inline bool is_dma() const { return buffer_type_ == BUFF_TYPE_DMA; }
+    inline bool is_rdma() const { return buffer_type_ == BUFF_TYPE_RDMA; }
 
-    /**
-     * @brief 
-     * 
-     * @return true 
-     * @return false 
-     */
-    inline bool valid() const { return ! null(); }
-
-    /**
-     * @brief 
-     * 
-     * @return void* 
-     */
-    inline void* addr() const { assert(ptr_ != nullptr); return ptr_->addr(); }
-
-    /**
-     * @brief 
-     * 
-     * @return size_t 
-     */
-    inline size_t size() const { return ptr_->size(); }
-
-    /**
-     * @brief  
-     * 
-     * @return uint8_t* 
-     */
-    inline void* end() const { return ptr_->end(); }
-
-    /**
-     * @brief 
-     * 
-     * @return int 
-     */
-    inline int type() const { return ptr_->type(); }
-
-    /**
-     * @brief 
-     * 
-     * @return rkey 
-     */
-    inline uint32_t rkey() const { return ptr_->rkey(); }
-
-    /**
-     * @brief 
-     * 
-     * @return lkey 
-     */
-    inline uint32_t lkey() const { return ptr_->lkey(); }
-
-    /**
-     * @brief 
-     * 
-     * @return true 
-     * @return false 
-     */
-    inline bool is_normal() const { return ptr_->type() == BUFF_TYPE_NORMAL; }
-    inline bool is_dma() const { return ptr_->type() == BUFF_TYPE_DMA; }
-    inline bool is_rdma() const { return ptr_->type() == BUFF_TYPE_RDMA; }
-
-    /**
-     * @brief 
-     * 
-     * @param sz 
-     * @return true 
-     * @return false 
-     */
-    inline bool resize(size_t sz) { return ptr_->resize(sz); }
-
-    /**
-     * @brief 
-     * 
-     * @return BufferPtr* 
-     */
-    inline BufferPtr* get() const { return ptr_.get(); }
-
-    /**
-     * @brief 清楚引用
-     * 
-     */
-    inline void clear() { ptr_.reset(); }
-
+    // inline bool resize(size_t sz) { return ptr_->resize(sz); }
     Buffer(const Buffer&) = default;
     Buffer(Buffer&&) = default;
     Buffer& operator = (const Buffer&) = default;
     Buffer& operator = (Buffer&&) = default;
-
-private:
-    std::shared_ptr<BufferPtr> ptr_ {nullptr};
+protected:
+    uint64_t addr_;
+    size_t   size_;
+    uint32_t lkey_;
+    uint32_t rkey_;
+    BufferTypes buffer_type_;
 }; // class Buffer
 
 class BufferList {
@@ -394,41 +223,13 @@ class BufferAllocator {
 public:
     virtual ~BufferAllocator() {}
 
-    /**
-     * @brief 获得内存分配器
-     * 
-     * @return BufferAllocator*
-     */
-    // virtual BufferAllocator* get_buffer_allocator() const = 0;
-    /**
-     * @brief 所分配的内存类型
-     * 
-     * @return int 
-     */
     virtual int type() const = 0;
 
-    /**
-     * @brief 
-     * 
-     * @return true 
-     * @return false 
-     */
     inline bool is_normal() const { return this->type() == BUFF_TYPE_NORMAL; }
     inline bool is_dma() const { return this->type() == BUFF_TYPE_DMA; }
     inline bool is_rdma() const { return this->type() == BUFF_TYPE_RDMA; }
 
-    /**
-     * @brief 所能分配的最大内存（不是Free空间）
-     * 
-     * @return size_t 
-     */
     virtual size_t max_size() const = 0;
-
-    /**
-     * @brief 所能分配的最小内存
-     * 
-     * @return size_t 
-     */
     virtual size_t min_size() const = 0;
 
     /**
@@ -436,27 +237,11 @@ public:
      * 
      * @return size_t 当有剩余空间，但无法准确获取时，返回BUFF_ALLOC_FULL_SIZE
      */
-    virtual size_t free_size() const = 0;
+    virtual size_t free_size() {}
 #define BUFF_ALLOC_FULL_SIZE    (~0ULL)
+    virtual bool empty() {}
 
-    /**
-     * @brief 为空
-     * 
-     * @return true 没有剩余空间
-     * @return false 
-     */
-    virtual bool empty() const = 0;
-
-    /**
-     * @brief 分配指定大小的Buffer
-     * 需要检查Buffer是否有效(valid)，
-     * 当Buffer的is_null()返回true或valid()返回false时，
-     * 表示内存分配器不能够再分配指定大小的内存
-     * @param sz 
-     * @return Buffer 
-     */
     virtual Buffer allocate(size_t sz) = 0;
-
     virtual Buffer* allocate_ptr(size_t sz) = 0;
 protected:
     BufferAllocator() {}

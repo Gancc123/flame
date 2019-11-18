@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-05 09:56:57
+ * @LastEditTime: 2019-10-25 19:04:01
  */
 #include "msg/msg_core.h"
 #include "common/context.h"
@@ -58,12 +58,12 @@ static void rdma_mgr_start(void *arg1, void *arg2){
 
     ML(mct, info, "msger_id {:x} {:x} ", mct->config->msger_id.ip,
                                          mct->config->msger_id.port);
-
+    std::getchar();
     ML(mct, info, "before msg module fin");
     mct->fin();
     ML(mct, info, "after msg module fin");
 
-    std::getchar();
+    
     delete msger;
     delete mct;
     

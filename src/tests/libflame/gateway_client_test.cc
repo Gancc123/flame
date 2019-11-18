@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-25 14:25:29
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-20 15:51:51
+ * @LastEditTime: 2019-11-12 10:23:34
  */
 #include "include/libflame.h"
 #include "util/spdk_common.h"
@@ -79,17 +79,22 @@ static void test_gateway(void *arg1, void *arg2){
         std::cout << "--------------------------" << std::endl;
     }
     flame_handlers->cmd_client_stub->set_session("192.168.3.112", 9999);
-    flame_handlers->cmd_client_stub->set_session("192.168.3.112", 9996);
-    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
-    Buffer buf_write = allocator->allocate(1 << 22); //4MB
-    Buffer buf_read  = allocator->allocate(1 << 22); //4MB
+    // flame_handlers->cmd_client_stub->set_session("192.168.3.112", 9996);
+    BufferAllocator *allocator = memory::ib::RdmaBufferAllocator::get_buffer_allocator();
+    Buffer* buf_write = allocator->allocate_ptr(1 << 22); //4MB
+    Buffer* buf_read  = allocator->allocate_ptr(1 << 22); //4MB
     uint64_t GigaByte = 1 << 30;
-    char *m = (char *)buf_write.addr();
+    char *m = (char *)buf_write->addr();
     for(int i = 0; i < 8192 * 2; i++)
         *(m + i) = 'a' + i % 26;
-    flame_handlers->write(vg_name, vol_name, buf_write, GigaByte - 8192, 8192 * 2, cb_func2, nullptr);
-    getchar();
-    flame_handlers->read(vg_name, vol_name, buf_read, GigaByte - 8192, 8192 * 2, cb_func, nullptr);
+    // flame_handlers->write(vg_name, vol_name, buf_write, GigaByte - 8192, 8192, cb_func2, nullptr);
+    // getchar();
+    int N = 640;
+    Buffer* lots_of_buf[N];
+    for(int i = 0; i < N; i++){
+        lots_of_buf[i]  = allocator->allocate_ptr(1 << 22); //4MB
+        flame_handlers->read(vg_name, vol_name, *lots_of_buf[i], 0, 1024*1024, cb_func, nullptr);
+    }
     getchar();
     spdk_app_stop(0);
 }

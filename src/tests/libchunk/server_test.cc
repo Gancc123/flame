@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-09-04 15:20:04
+ */
 #include "common/context.h"
 #include "common/cmdline.h"
 #include "common/convert.h"
@@ -24,7 +32,10 @@
 
 #include "common/context.h"
 #include "util/spdk_common.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include <memory>
 #include <string>

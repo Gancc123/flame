@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-10 14:57:01
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-22 11:37:24
+ * @LastEditTime: 2019-10-12 15:11:02
  */
 #include "libflame/libchunk/libchunk.h"
 
@@ -12,10 +12,13 @@
 #include "log_libchunk.h"
 #include "common/context.h"
 #include "util/spdk_common.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 #include "util/ip_op.h"
 
-
+#define MAX_INFLIGHT_REQ (1 << 16 - 1)
 namespace flame {
 
 //-------------------------------------MemoryAreaImpl->MemoryArea-------------------------------------------------------//
@@ -52,7 +55,7 @@ cmd_ma_t MemoryAreaImpl::get() const {
  *          msg_module_cb       clear_done_cb       在消息模块销毁后调用的函数
  * @return: \
  */
-int CmdClientStubImpl::ring = 0;
+std::atomic<uint64_t> ring(0);     //用于填充cqn
 CmdClientStubImpl::CmdClientStubImpl(FlameContext *flame_context, msg::msg_module_cb clear_done_cb)
     :  CmdClientStub(){
     msg_context_ = new msg::MsgContext(flame_context); //* set msg_context_
@@ -134,7 +137,7 @@ void CmdClientStubImpl::_prepare_inline(RdmaWorkRequest& req, uint64_t bufaddr, 
     (req.get_ibv_send_wr())->num_sge = 2;
 }
 
-uint32_t CmdClientStubImpl::_get_cq(RdmaWorkRequest& req){
+uint32_t CmdClientStubImpl::_get_command_queue_n(RdmaWorkRequest& req){
     return ((cmd_t *)req.command)->hdr.cqg << 16 | ((cmd_t *)req.command)->hdr.cqn;
 }
 
@@ -145,7 +148,7 @@ uint32_t CmdClientStubImpl::_get_cq(RdmaWorkRequest& req){
  * @return: 
  */
 int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_t cb_fn, Buffer* buffer, void* cb_arg){
-    ((cmd_t *)req.command)->hdr.cqn = ((ring++)%256);
+    ((cmd_t *)req.command)->hdr.cqn = ((ring++)%MAX_INFLIGHT_REQ);
     msg::Connection* conn = session_[io_addr]->get_conn(msg::msg_ttype_t::RDMA);
     msg::RdmaConnection* rdma_conn = msg::RdmaStack::rdma_conn_cast(conn);
     if(((cmd_t *)req.command)->hdr.cn.seq == CMD_CHK_IO_WRITE){
@@ -160,7 +163,9 @@ int CmdClientStubImpl::submit(RdmaWorkRequest& req, uint64_t io_addr, cmd_cb_fn_
     msg_cb.cb_fn    = cb_fn;
     msg_cb.buffer   = req.get_data_buf(); 
     msg_cb.cb_arg   = cb_arg;
-    uint32_t cq = _get_cq(req);
+    uint32_t cq = _get_command_queue_n(req);
+    FlameContext* flame_context = FlameContext::get_context();
+    flame_context->log()->ldebug("submit command queue num : 0x%x", cq);
     msg_cb_map_.insert(std::map<uint32_t, MsgCallBack>::value_type (cq, msg_cb));
     rdma_conn->post_send(&req);
     return 0;

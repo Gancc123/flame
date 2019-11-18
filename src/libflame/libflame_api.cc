@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-07-12 17:34:25
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 09:30:19
+ * @LastEditTime: 2019-10-14 16:25:16
  */
 #include "include/libflame_api.h"
 
@@ -129,12 +129,12 @@ extern "C" int flame_handlers_open_volume(const char* volume_group_name, const c
 /* Buffer_API*/
 extern "C" int allocate_buffer(BufferInfo_t* const buffer_info, void** buf){
     if(buffer_info->size <= 0) return -1;
-    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator();
+    BufferAllocator *allocator = memory::ib::RdmaBufferAllocator::get_buffer_allocator();
     Buffer* buffer = allocator->allocate_ptr(buffer_info->size);
     assert(buffer != nullptr);
     buffer_info->addr = (uint64_t)buffer->addr();
     buffer_info->size = buffer->size();
-    buffer_info->type = buffer->type();
+    buffer_info->type = buffer->buffer_type();
     *buf = (void*)buffer;
     return 0;
 }

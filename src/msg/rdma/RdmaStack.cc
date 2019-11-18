@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 17:11:31
+ * @LastEditTime: 2019-11-15 11:29:51
  */
 #include "RdmaStack.h"
 #include "Infiniband.h"
@@ -14,9 +14,13 @@
 #include "msg/msg_def.h"
 #include "msg/MsgManager.h"
 #include "msg/internal/errno.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "common/context.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include <cassert>
+#include <thread>
 
 namespace flame{
 namespace msg{
@@ -181,13 +185,15 @@ void RdmaWorker::handle_tx_cqe(ibv_wc *cqe, int n){
             }
             qp->dec_tx_wr(1);
         }
-
-        ML(mct, debug, "QP: {}, wr_id: {:x}, imm_data:{} {} {}", 
+        FlameContext* flame_context = FlameContext::get_context();
+        std::thread::id tid = std::this_thread::get_id();
+        ML(mct, debug, "i : {}, n : {}", i, n);
+        flame_context->log()->ldebug("RdmaStack", "QP: %lu, wr_id: 0x%x, imm_data:%lu %s %s", 
                 response->qp_num, response->wr_id, 
                 (response->wc_flags & IBV_WC_WITH_IMM)?response->imm_data:0,
                 manager->get_ib().wc_opcode_string(response->opcode),
                 manager->get_ib().wc_status_to_string(response->status));
-
+                
         RdmaSendWr *wr = reinterpret_cast<RdmaSendWr *>(response->wr_id);
         wr->get_ibv_send_wr()->next = nullptr;
         wr->on_send_done(cqe[i]);
@@ -305,7 +311,7 @@ void RdmaWorker::handle_rx_cqe(ibv_wc *cqe, int n){
             conn->close_msg_arrive();
         }else if(!handle_rx_msg(response, conn)){
              //not msg module msg.
-             wr->on_recv_done(conn, cqe[i]);
+             wr->on_recv_done(conn, cqe[i]);//其实wr就是根据cqe[i]计算出来的，所以第二个参数无用
         }
             
 
@@ -349,10 +355,8 @@ int RdmaWorker::process_rx_cq(ibv_wc *wc, int max_cqes){
         if(srq){
             uint32_t i;
             for(i = 0;i < rx_ret;++i){
-                RdmaRecvWr *wr = 
-                            reinterpret_cast<RdmaRecvWr *>(wc[i].wr_id);
-                if(inflight_recv_wrs.empty() 
-                || inflight_recv_wrs.front() != wr){
+                RdmaRecvWr *wr = reinterpret_cast<RdmaRecvWr *>(wc[i].wr_id);
+                if(inflight_recv_wrs.empty() || inflight_recv_wrs.front() != wr){
                     uint32_t it = 0;
                     bool found = false;
                     while(it < inflight_recv_wrs.size()){
@@ -371,13 +375,13 @@ int RdmaWorker::process_rx_cq(ibv_wc *wc, int max_cqes){
                     }
                 }else{
                     inflight_recv_wrs.pop_front();
-                    }
+                }
             }
             uint32_t rx_queue_len = get_rdma_manager()->get_ib().get_rx_queue_len();
             assert(rx_queue_len >= inflight_recv_wrs.size());
             post_rdma_recv_wr_to_srq(rx_queue_len - inflight_recv_wrs.size());      
         }
-        
+
        //if don't have srq, reuse rx buffers after RdmaConn recv_data().
        handle_rx_cqe(wc, rx_ret);
        return rx_ret;
@@ -701,7 +705,7 @@ int RdmaManager::arm_async_event_handler(MsgWorker *worker){
 }
 
 RdmaStack::RdmaStack(MsgContext *c)
-:mct(c), manager(nullptr), rdma_prep_conns_mutex(MUTEX_TYPE_ADAPTIVE_NP) {
+:mct(c), manager(nullptr), rdma_prep_conns_mutex(MUTEX_TYPE_DEFAULT) {
     auto cfg = mct->config;
     assert(cfg != nullptr);
     max_msg_size_ = ((uint64_t)cfg->rdma_buffer_size) 
@@ -760,7 +764,7 @@ Connection* RdmaStack::connect(NodeAddr *addr){
 }
 
 BufferAllocator *RdmaStack::get_rdma_allocator() {
-    return RdmaAllocator::get_buffer_allocator();
+    return memory::ib::RdmaBufferAllocator::get_buffer_allocator();
 }
 
 void RdmaStack::on_rdma_prep_conn_close(RdmaPrepConn *conn){

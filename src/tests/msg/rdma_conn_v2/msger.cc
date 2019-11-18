@@ -4,10 +4,14 @@
  * @Author: lwg
  * @Date: 2019-09-04 15:20:04
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-06 16:53:29
+ * @LastEditTime: 2019-10-24 17:15:33
  */
 #include "msger.h"
-#include "memzone/rdma_mz.h"
+#include "include/buffer.h"
+#include "common/context.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include "util/clog.h"
 
@@ -28,7 +32,7 @@ Request* Request::create(MsgContext *c, Msger *m){
     auto data_buffer = allocator->allocate_ptr(4096);
     if(!data_buffer){
         delete req;
-        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)data_buffer);
+        dynamic_cast<memory::ib::RdmaBufferAllocator*>(allocator)->free((RdmaBuffer*)data_buffer);
         return nullptr;
     }
     req->buf = buffer;
@@ -71,11 +75,11 @@ Request::~Request(){
     auto allocator = Stack::get_rdma_stack()->get_rdma_allocator();
     assert(allocator);
     if(buf){
-        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)buf);
+        dynamic_cast<memory::ib::RdmaBufferAllocator*>(allocator)->free((RdmaBuffer*)buf);
         buf = nullptr;
     }
     if(data_buffer){
-        dynamic_cast<RdmaAllocator*>(allocator)->get_allocator_ctx()->free((RdmaBuffer*)buf);
+        dynamic_cast<memory::ib::RdmaBufferAllocator*>(allocator)->free((RdmaBuffer*)buf);
         data_buffer = nullptr;
     }
 }
@@ -206,7 +210,7 @@ void Request::run(){
 
 
 RequestPool::RequestPool(MsgContext *c, Msger *m)
-:mct(c), msger(m), mutex_(MUTEX_TYPE_ADAPTIVE_NP){
+:mct(c), msger(m), mutex_(MUTEX_TYPE_DEFAULT){
 
 }
 
@@ -291,11 +295,11 @@ void Msger::on_conn_declared(Connection *conn, Session *s){
 
 void Msger::on_rdma_env_ready(){
     FlameContext* fct = FlameContext::get_context();
-    /*第一次需要传入参数构建全局的RdmaAllocator*/
-    MemoryConfig *mem_cfg = MemoryConfig::load_config(fct);
+    /*第一次需要传入参数构建全局的RdmaBufferAllocator*/
+    memory::MemoryConfig *mem_cfg = memory::MemoryConfig::load_config(fct);
     assert(mem_cfg);
     flame::msg::ib::ProtectionDomain *pd = flame::msg::Stack::get_rdma_stack()->get_rdma_manager()->get_ib().get_pd();
-    BufferAllocator *allocator = RdmaAllocator::get_buffer_allocator(fct, pd, mem_cfg);
+    BufferAllocator *allocator = memory::ib::RdmaBufferAllocator::get_buffer_allocator(pd, mem_cfg);
 };
 
 }// namespace msg

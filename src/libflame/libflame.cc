@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-05-13 09:35:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-09-21 09:56:27
+ * @LastEditTime: 2019-10-10 15:16:27
  */
 #include "include/libflame.h"
 
@@ -14,13 +14,14 @@
 #include "libflame/libchunk/libchunk.h"
 #include "include/csdc.h"
 #include "util/ip_op.h"
+#include "libflame/log_libflame.h"
 
 #include <grpcpp/grpcpp.h>
 #include <regex>
 #include <string>
 #include <iterator>
 
-#define CONCURRENCY_MAX 1000
+#define CONCURRENCY_MAX 65535
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
@@ -48,6 +49,7 @@ void sub_cb(const Response& res, Buffer* buffer, void* arg1){
         *(arg->sub) = 0;
         if(arg->cb != nullptr){
             arg->cb((uint64_t)buffer->addr(), arg->arg, 0); //*默认状态都是成功
+            delete(buffer); //* 释放target端内存*/
         }   
     }
 }
@@ -132,6 +134,7 @@ int Volume::_vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOf
     offset_inchunk = offset - start_index * chunk_size;
     length_inchunk = length > chunk_size - offset_inchunk ? chunk_size - offset_inchunk : length;
     ChunkOffLen chunk_position;
+    chunk_position.chunk_index = start_index;
     chunk_position.chunk_id = volume_meta_.chunks_map[start_index].chunk_id;
     chunk_position.offset = offset_inchunk;
     chunk_position.length = length_inchunk;
@@ -140,11 +143,13 @@ int Volume::_vol_to_chunks(uint64_t offset, uint64_t length, std::vector<ChunkOf
         return 0;
     }
     for(int i = start_index + 1; i < end_index; i++){
+        chunk_position.chunk_index = i;
         chunk_position.chunk_id = volume_meta_.chunks_map[i].chunk_id;
         chunk_position.offset = 0;
         chunk_position.length = chunk_size;
         chunk_positions.push_back(chunk_position);
     }
+    chunk_position.chunk_index = end_index;
     chunk_position.chunk_id = volume_meta_.chunks_map[end_index].chunk_id;
     chunk_position.offset = 0;
     chunk_position.length = (offset + length) - end_index * chunk_size;
@@ -164,9 +169,11 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buf
     cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg}; 
 
     for(int i = 0; i < chunk_positions.size(); i++){ 
-        uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
-        uint64_t peer_io_addr = peer_io_op << 16 | volume_meta_.chunks_map[i].port;
-        uint64_t chunk_id = chunk_positions[i].chunk_id;
+        uint64_t chunk_index = chunk_positions[i].chunk_index;
+        uint64_t peer_io_op = volume_meta_.chunks_map[chunk_index].ip;
+        uint64_t peer_io_addr = peer_io_op << 16 | volume_meta_.chunks_map[chunk_index].port;
+        uint64_t chunk_id = chunk_positions[i].chunk_id; 
+        FlameContext* flame_context = FlameContext::get_context();
         uint64_t offset_inner = chunk_positions[i].offset;
         uint64_t length_inner = chunk_positions[i].length;
         if(length_inner < 4096){
@@ -177,6 +184,7 @@ int Volume::read(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& buf
         MemoryArea* memory_read = new MemoryAreaImpl(addr, length_inner, rkey, 1);
         cmd_t* cmd_read = (cmd_t *)rdma_work_request_read->command;
         ChunkReadCmd* read_cmd = new ChunkReadCmd(cmd_read, chunk_id, offset_inner, length_inner, *memory_read); 
+        flame_context->log()->ldebug("ts read_cmd->get_chk_id() = %llu", read_cmd->get_chk_id());
         cmd_client_stub->submit(*rdma_work_request_read, peer_io_addr, sub_cb, &buff, (void*)sub_arg);
         addr += length_inner;
     }
@@ -192,8 +200,9 @@ int Volume::write(std::shared_ptr<CmdClientStubImpl> cmd_client_stub, Buffer& bu
     sub_index = sub_index++ % CONCURRENCY_MAX;
     cb_arg* sub_arg = new cb_arg {&sub[sub_index], (int)chunk_positions.size(), cb, arg};
     for(int i = 0; i < chunk_positions.size(); i++){
-        uint64_t peer_io_op = volume_meta_.chunks_map[i].ip;
-        uint64_t peer_io_addr = peer_io_op << 16 | (uint32_t)volume_meta_.chunks_map[i].port;
+        uint64_t chunk_index = chunk_positions[i].chunk_index;
+        uint64_t peer_io_op = volume_meta_.chunks_map[chunk_index].ip;
+        uint64_t peer_io_addr = peer_io_op << 16 | (uint32_t)volume_meta_.chunks_map[chunk_index].port;
         uint64_t chunk_id = chunk_positions[i].chunk_id;
         uint64_t offset_inner = chunk_positions[i].offset;
         uint64_t length_inner = chunk_positions[i].length;

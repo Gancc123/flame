@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-06-14 21:24:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-08-28 14:38:03
+ * @LastEditTime: 2019-11-13 10:20:19
  */
 #include "common/context.h"
 #include "common/cmdline.h"
@@ -31,7 +31,11 @@
 #include "libflame/libchunk/chunk_cmd_service.h"
 
 #include "include/spdk_common.h"
-#include "memzone/rdma_mz.h"
+
+#include "include/buffer.h"
+#include "msg/rdma/Infiniband.h"
+#include "memzone/mz_types.h"
+#include "memzone/rdma/RdmaMem.h"
 
 #include <memory>
 #include <string>
@@ -462,10 +466,10 @@ bool CSD::init_chunkstore(bool force_format) {
 
     /*libchunk部分*/
     FlameContext* flame_context = FlameContext::get_context();
-    CmdServerStubImpl* cmd_sever_stub = new CmdServerStubImpl(flame_context);
+    CmdServerStubImpl* cmd_sever_stub = new CmdServerStubImpl(flame_context);  //**建立msger server 服务 **//
     CmdServiceMapper *cmd_service_mapper = CmdServiceMapper::get_cmd_service_mapper();
     cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_READ, new ReadCmdService(cct_.get()));
-    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_.get()));
+    cmd_service_mapper->register_service(CMD_CLS_IO_CHK, CMD_CHK_IO_WRITE, new WriteCmdService(cct_.get())); //**注册两个Service服务，一个读一个写**//
 
     flame_context->log()->ltrace("CmdSeverStub created!");
 
