@@ -1,3 +1,11 @@
+<!--
+ * @Descripttion: 
+ * @version: 0.1
+ * @Author: lwg
+ * @Date: 2019-09-04 15:20:04
+ * @LastEditors: lwg
+ * @LastEditTime: 2019-12-19 16:06:38
+ -->
 # Flame  
 
 ## 编译说明  
@@ -6,8 +14,6 @@
 git clone http://115.156.135.251:7979/xxx/flame-sp.git
 
 cd flame-sp
-
-git submodule update --init #更新git子模块(googletest)
 
 ./do_cmake.sh #进行编译
 ```
