@@ -4,7 +4,7 @@
  * @Author: lwg
  * @Date: 2019-05-13 09:35:50
  * @LastEditors: lwg
- * @LastEditTime: 2019-10-10 15:16:27
+ * @LastEditTime: 2019-11-19 09:12:19
  */
 #include "include/libflame.h"
 
@@ -34,7 +34,7 @@ using grpc::Status;
 namespace flame {
 
 int sub[CONCURRENCY_MAX] = {};
-int sub_index = 0;
+std::atomic<uint64_t> sub_index(0);     //用于填充cqn
 struct cb_arg{
     int* sub;
     int total_completion;
