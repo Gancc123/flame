@@ -23,9 +23,16 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/nvmf.conf
             ${TESTS_NVMF_OUTPUT_DIR})
 
+add_custom_command(
+    TARGET nvmf_tgt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_SOURCE_DIR}/internal_nvmf.conf
+            ${TESTS_NVMF_OUTPUT_DIR})
+
 set_target_properties(nvmf_tgt
     PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${TESTS_NVMF_OUTPUT_DIR}
     )
+
 
 
