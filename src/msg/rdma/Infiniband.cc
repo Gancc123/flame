@@ -691,7 +691,7 @@ int Infiniband::decode_msg(MsgContext *mct, IBSYNMsg& im, MsgBuffer &buffer){
         return -1;
     }
     char gid[33];
-    sscanf(buffer.data(), "%hu:%x:%x:%x:%hhx:%s", &(im.lid), &(im.qpn), 
+    sscanf(buffer.data(), "%x:%x:%x:%x:%hhx:%s", &(im.lid), &(im.qpn), 
                                     &(im.psn), &(im.peer_qpn), &(im.sl), gid);
     wire_gid_to_gid(gid, &(im.gid));
     ML(mct, info, "{}, {}, {}, {}, {}, {}", 
