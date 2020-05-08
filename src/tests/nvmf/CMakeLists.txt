@@ -21,10 +21,7 @@ add_custom_command(
     TARGET nvmf_tgt POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_CURRENT_SOURCE_DIR}/nvmf.conf
-            ${TESTS_NVMF_OUTPUT_DIR})
-
-add_custom_command(
-    TARGET nvmf_tgt POST_BUILD
+            ${TESTS_NVMF_OUTPUT_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_CURRENT_SOURCE_DIR}/internal_nvmf.conf
             ${TESTS_NVMF_OUTPUT_DIR})

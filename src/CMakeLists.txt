@@ -1,6 +1,6 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-security -Wno-return-type")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-security -Wno-return-type -O2")
 
 # requeired by spdlog
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
@@ -130,6 +130,10 @@ add_library(cml-objs OBJECT
     )
 list(APPEND obj_modules cml)
 
+add_library(spdk_rpc-objs OBJECT
+    cml/spdk_rpc.cc
+    )
+list(APPEND obj_modules spdk_rpc)
 
 #### csm
 add_library(csm-objs OBJECT
@@ -429,6 +433,14 @@ target_link_libraries(cml PRIVATE
     ${flame_grpc_deps}
     )
 
+# add_executable(spdk_rpc
+#     ${spdk_rpc_objs}
+#     )
+# target_link_libraries(spdk_rpc PRIVATE
+#     common
+#     ${SPDK_LIBRARIES}
+#     )
+
 #### gen csm
 add_executable(csm
     ${csm_objs}
@@ -440,7 +452,7 @@ target_link_libraries(csm PRIVATE
     ${flame_grpc_deps}
     )
 
+add_subdirectory(libflame)
 add_subdirectory(tests)
 
-add_subdirectory(libflame)
 add_subdirectory(gtest)

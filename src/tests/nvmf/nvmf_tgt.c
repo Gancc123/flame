@@ -38,6 +38,7 @@
 
 #define SPDK_NVMF_BUILD_ETC "/usr/local/etc/nvmf"
 #define SPDK_NVMF_DEFAULT_CONFIG SPDK_NVMF_BUILD_ETC "/nvmf.conf"
+#define LISTEN_ADDR "192.168.2.111:5566"
 
 static void
 nvmf_usage(void)
@@ -69,6 +70,7 @@ main(int argc, char **argv)
 	opts.name = "nvmf";
 	opts.config_file = SPDK_NVMF_DEFAULT_CONFIG;
 	opts.max_delay_us = 1000; /* 1 ms */
+	opts.rpc_addr = LISTEN_ADDR;
 	opts.mem_size = 2048;
 	if ((rc = spdk_app_parse_args(argc, argv, &opts, "",
 				      nvmf_parse_arg, nvmf_usage)) !=
