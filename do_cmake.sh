@@ -30,8 +30,9 @@ if ["${SPDK_ROOT}" == ""]; then
 fi  
 currentDir=`pwd`
 cd ${SPDK_ROOT}
+make clean 
 ./configure 
-make 
+make -j8
 
 cd ${currentDir}
 mkdir build

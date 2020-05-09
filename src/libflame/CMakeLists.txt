@@ -36,7 +36,7 @@ add_custom_command(
             "/usr/include/"
     COMMAND echo "copy libflame.so to /usr/lib/ success..."
     COMMAND ./configure --with-rdma --with-fbd WORKING_DIRECTORY ${SPDK_DIR}
-    COMMAND make WORKING_DIRECTORY ${SPDK_DIR}
+    COMMAND make -j8 WORKING_DIRECTORY ${SPDK_DIR}
     COMMENT echo "spdk-modify compile success...")
 
 # set_target_properties(flame PROPERTIES output_name "flame")
