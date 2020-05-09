@@ -24,6 +24,16 @@ fi
 
 ARGS="$ARGS -DCMAKE_BUILD_TYPE=Debug"
 
+if ["${SPDK_ROOT}" == ""]; then
+    echo -e "\033[31m Don't set SPDK_ROOT \033[0m"
+    exit 0
+fi  
+currentDir=`pwd`
+cd ${SPDK_ROOT}
+./configure 
+make 
+
+cd ${currentDir}
 mkdir build
 cd build
 #NPROC=${NPROC:-$(nproc)}
@@ -31,7 +41,7 @@ cd build
 
 if [ "x$NINJA" == "x" ]; then
     cmake  $ARGS "$@" ..
-    cmake --build . -- -j2
+    cmake --build . -- -j8
 else
     cmake -GNinja $ARGS "$@" ..
     $NINJA $NINJA_ARGS

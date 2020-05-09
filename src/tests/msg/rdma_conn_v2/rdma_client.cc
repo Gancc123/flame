@@ -103,6 +103,7 @@ int main(int argc, char *argv[]) {
     struct spdk_app_opts opts;
     spdk_app_opts_init(&opts);
     opts.mem_size = 2048;
+    opts.reactor_mask = "0xf";
     opts.rpc_addr = "/var/tmp/spdk_client.sock";
     int rc = 0;
     rc = spdk_app_start(&opts, rdma_client_start, nullptr, nullptr);

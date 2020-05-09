@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
     struct spdk_app_opts opts;
     spdk_app_opts_init(&opts);
     opts.mem_size = 2048;
+    opts.reactor_mask = "0xf";
     int rc = 0;
     rc = spdk_app_start(&opts, rdma_mgr_start, nullptr, nullptr);
     if(rc) {

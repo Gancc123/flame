@@ -8,6 +8,12 @@
  */
 #include "common/cmdline.h"
 
+#include <cstdio>
+#include <cstdint>
+#include <string>
+#include <memory>
+#include <list>
+
 #include <grpcpp/grpcpp.h>
 
 #include "include/flame.h"
@@ -15,17 +21,37 @@
 #include "service/flame_client.h"
 #include "util/utime.h"
 
-#include <cstdio>
-#include <cstdint>
-#include <string>
-#include <memory>
-#include <list>
+#include "spdk/json.h"
 
 using namespace std;
 using namespace flame;
 using namespace flame::cli;
 
 #define DEFAULT_MGR_ADDR "192.168.3.112:6677"
+
+static uint8_t g_buf[1024];
+static uint8_t *g_write_pos;
+
+static int
+write_cb(void *cb_ctx, const void *data, size_t size)
+{
+	size_t buf_free = g_buf + sizeof(g_buf) - g_write_pos;
+
+	if (size > buf_free) {
+		return -1;
+	}
+
+	memcpy(g_write_pos, data, size);
+	g_write_pos += size;
+
+	return 0;
+}
+
+#define ERR_EXIT(m) \
+	do{ \
+		perror(m); \
+		exit(EXIT_FAILURE); \
+	} while(0)
 
 static int success__() {
     printf("Success!\n");
@@ -212,6 +238,8 @@ public:
     Serial<string>  vg_name  {this, 1, "vg_name", "the name of volume group"};
     Serial<string>  vol_name {this, 2, "vol_name", "the name of volume"};
     Serial<int>     size     {this, 3, "size", "the size of volume, unit(GB)"};
+    Serial<string>  target_ip     {this, 4, "target_ip", "the ip of the target, example 192.168.3.110"};
+    Serial<int>     target_rpc_port     {this, 5, "target_rpc_port", "the port of the SPDK rpc"};
 
     Argument<int>   chk_sz   {this, "chunk_size", "the size of chunk in this volume, unit(GB)", 1};
     Argument<string> spolicy {this, "store_policy", "the store policy of this volume", ""};
@@ -222,7 +250,7 @@ public:
     HelpAction help {this};
 
     int def_run() {
-        auto cct = make_flame_client_context(mgr_addr);
+        auto cct = make_flame_client_context(mgr_addr.get());
         vol_attr_t attr;
         attr.size = (uint64_t)size.get() << 30;
         attr.chk_sz = chk_sz.get() << 30;
@@ -230,8 +258,130 @@ public:
         
         int r = cct->client()->create_volume(vg_name.get(), vol_name.get(), attr);
         check_faild__(r, "create volume");
-
+        _buildFBD();
+        _buildTarget();
         return success__();
+    }
+private:
+    int _buildFBD(){
+        memset(g_buf, 0, sizeof(g_buf));
+        g_write_pos = g_buf;
+
+        char *create_fbd_method = "construct_flame_bdev";
+        struct spdk_json_write_ctx *w;
+        w = spdk_json_write_begin(write_cb, NULL, 0);
+
+        spdk_json_write_object_begin(w);
+        spdk_json_write_named_string(w, "jsonrpc", "2.0");
+        spdk_json_write_named_uint32(w, "id", 1);
+        spdk_json_write_named_string(w, "method", create_fbd_method);
+        spdk_json_write_name(w, "params");
+
+        spdk_json_write_object_begin(w);
+        spdk_json_write_named_string(w, "vg_name", vg_name.get().c_str());
+        spdk_json_write_named_string(w, "vol_name", vol_name.get().c_str());
+        spdk_json_write_named_uint64(w, "size", size.get());
+        spdk_json_write_named_string(w, "mgr_addr", mgr_addr.get().c_str());
+        spdk_json_write_object_end(w);
+
+        spdk_json_write_object_end(w);
+
+        spdk_json_write_end(w);
+
+        int sockfd;
+        if((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
+            ERR_EXIT("socket");
+        }
+        struct sockaddr_in serveraddr;
+        memset(&serveraddr, 0, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(target_rpc_port);
+        serveraddr.sin_addr.s_addr = inet_addr(target_ip.get().c_str());
+
+        if((connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr))) < 0){
+            ERR_EXIT("connect");
+        }
+        
+        char recvbuf[1024] = {0};
+        int rc = write(sockfd, g_buf, sizeof(g_buf));
+        if(rc == -1) ERR_EXIT("write socket");
+        rc = read(sockfd, recvbuf, sizeof(recvbuf));
+        if(rc == -1) ERR_EXIT("read socket");
+
+        fputs(recvbuf, stdout);
+        
+        close(sockfd);
+        return 0;
+    }
+
+    int _buildTarget(){
+        memset(g_buf, 0, sizeof(g_buf));
+        g_write_pos = g_buf;
+
+        char *create_target_method = "construct_nvmf_subsystem";
+        string nqn = "nqn.2016-06.io.spdk:" + vg_name.get() + "_" +  vol_name.get();
+        struct spdk_json_write_ctx *w;
+        w = spdk_json_write_begin(write_cb, NULL, 0);
+
+        spdk_json_write_object_begin(w);
+            spdk_json_write_named_string(w, "jsonrpc", "2.0");
+            spdk_json_write_named_uint32(w, "id", 1);
+            spdk_json_write_named_string(w, "method", create_target_method);
+            spdk_json_write_name(w, "params");
+
+            spdk_json_write_object_begin(w);
+                spdk_json_write_named_string(w, "nqn", nqn.c_str());
+                spdk_json_write_name(w, "listen_addresses");
+                    spdk_json_write_array_begin(w);
+                        spdk_json_write_object_begin(w);
+                            spdk_json_write_named_string(w, "trtype", "RDMA");
+                            spdk_json_write_named_string(w, "transport", "RDMA");
+                            spdk_json_write_named_string(w, "traddr", target_ip.get().c_str());
+                            spdk_json_write_named_string(w, "trsvcid", "4420");  //使用统一的4420不知道是否有问题
+                        spdk_json_write_object_end(w);
+                    spdk_json_write_array_end(w);
+                // spdk_json_write_name(w, "hosts");
+                // spdk_json_write_array_begin(w);
+                // spdk_json_write_string(w, "nqn.2016-06.io.spdk:init");
+                // spdk_json_write_array_end(w);
+                spdk_json_write_named_bool(w, "allow_any_host", true);
+                spdk_json_write_named_string(w, "serial_number", "SPDK00000000000001");
+                spdk_json_write_name(w, "namespaces");  
+                    spdk_json_write_array_begin(w);
+                        spdk_json_write_object_begin(w);
+                            spdk_json_write_named_string(w, "bdev_name", (vg_name.get() + "_" +  vol_name.get()).c_str());
+                        spdk_json_write_object_end(w);
+                    spdk_json_write_array_end(w);
+            spdk_json_write_object_end(w);
+
+        spdk_json_write_object_end(w);
+
+        spdk_json_write_end(w);
+
+        int sockfd;
+        if((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
+            ERR_EXIT("socket");
+        }
+        struct sockaddr_in serveraddr;
+        memset(&serveraddr, 0, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(target_rpc_port);
+        serveraddr.sin_addr.s_addr = inet_addr(target_ip.get().c_str());
+
+        if((connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr))) < 0){
+            ERR_EXIT("connect");
+        }
+        
+        char recvbuf[1024] = {0};
+        int rc = write(sockfd, g_buf, sizeof(g_buf));
+        if(rc == -1) ERR_EXIT("write socket");
+        rc = read(sockfd, recvbuf, sizeof(recvbuf));
+        if(rc == -1) ERR_EXIT("read socket");
+
+        fputs(recvbuf, stdout);
+        
+        close(sockfd);
+        return 0;
     }
 }; // class VolCreateCli
 
